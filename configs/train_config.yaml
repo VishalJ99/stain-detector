@@ -1,0 +1,43 @@
+project_name: "stain-detector"
+run_name: "resnet50_multiclass_v1" # Can be overridden or generated
+
+data:
+  train_dir: ./data/train
+  val_dir: ./data/val
+  test_dir: ./data/test
+  num_classes: 6 # Example: Set based on actual data subdirs
+  image_size: 224
+  batch_size: 64
+
+model:
+  name: resnet50 # Initial requirement
+  pretrained: true
+
+optimizer:
+  name: AdamW
+  lr: 0.001
+  weight_decay: 0.01
+
+scheduler: # Optional
+  name: CosineAnnealingLR
+  params: { T_max: 20 }
+
+training:
+  num_epochs: 25
+  device: cuda
+  seed: 42
+
+inference_defaults:
+  patch_size: 224 # Should match data.image_size
+  mpp: 0.5       # Microns-per-pixel (~20x)
+  num_patches: 1000 # Max patches to sample per WSI
+  tissue_threshold: 0.05 # Based on user code for HSV filtering
+  overlap: 0 # Patch overlap factor (0-1)
+  level: 0 # WSI level to extract patches from
+  inference_batch_size: 64
+
+logging:
+  wandb_project: "stain-detector"
+  wandb_entity: "vishaljain" # Placeholder
+  log_interval_steps: 50
+  log_val_batch_idx: 0 # Index for validation batch logging (-1 to disable)

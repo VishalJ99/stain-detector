@@ -1,0 +1,27 @@
+name: stain-detector
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch
+  - torchvision
+  - numpy
+  - pandas
+  - pillow
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - scipy
+  - tqdm
+  - openslide-python
+  - omegaconf
+  - pyyaml
+  - pip:
+    - wandb
+    - dvc
+    - albumentations
+    - opencv-python
+    - python-dotenv
