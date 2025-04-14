@@ -1,53 +1,55 @@
-import os
-import torch
-import numpy as np
 import argparse
-import pandas as pd
+import os
 from datetime import datetime
 from pathlib import Path
-from tqdm import tqdm
-from omegaconf import OmegaConf
 
+import pandas as pd
+import torch
+from torchvision import transforms
+from tqdm import tqdm
+
+from config import load_config
 from dataset import StainDataset
 from model import StainClassifier
 from utils import (
-    set_seed,
-    get_device,
-    setup_logging,
+    create_reproduce_command,
     extract_patches_from_wsi,
+    get_device,
     save_git_dvc_state,
-    create_reproduce_command
+    set_seed,
+    setup_logging,
 )
-from config import load_config
+
 
 def predict_patch(model, patch, transform, device):
     """
     Predict class for a single patch
-    
+
     Args:
         model (nn.Module): Trained model
         patch (numpy.ndarray): Image patch (RGB format)
         transform (callable): Transform to apply to the patch
         device (torch.device): Device to use for inference
-        
+
     Returns:
         tuple: (predicted_class_idx, prediction_probabilities)
     """
     # Preprocess the patch
     patch_tensor = transform(patch).unsqueeze(0).to(device)
-    
+
     # Get prediction
     with torch.no_grad():
         outputs = model(patch_tensor)
         probs = torch.softmax(outputs, dim=1)
         pred_class = torch.argmax(probs, dim=1).item()
-    
+
     return pred_class, probs.cpu().numpy()[0]
+
 
 def process_wsi(wsi_path, model, config, transform, device, output_dir, class_names):
     """
     Process a whole slide image for inference
-    
+
     Args:
         wsi_path (str): Path to the WSI file
         model (nn.Module): Trained model
@@ -56,7 +58,7 @@ def process_wsi(wsi_path, model, config, transform, device, output_dir, class_na
         device (torch.device): Device to use for inference
         output_dir (str): Directory to save results
         class_names (list): List of class names
-        
+
     Returns:
         pandas.DataFrame: DataFrame with patch predictions
     """
@@ -69,18 +71,20 @@ def process_wsi(wsi_path, model, config, transform, device, output_dir, class_na
         overlap=config.inference_defaults.overlap,
         num_patches=config.inference_defaults.num_patches,
         tissue_threshold=config.inference_defaults.tissue_threshold,
-        save_dir=os.path.join(output_dir, "patches", Path(wsi_path).stem) if config.save_patches else None
+        save_dir=os.path.join(output_dir, "patches", Path(wsi_path).stem)
+        if config.save_patches
+        else None,
     )
-    
+
     # Prepare results storage
     results = []
     slide_name = Path(wsi_path).stem
-    
+
     # Process each patch
     for i, patch in enumerate(tqdm(patches, desc=f"Processing {slide_name}")):
         # Get prediction
         pred_class, pred_probs = predict_patch(model, patch, transform, device)
-        
+
         # Save result
         result = {
             "slide_name": slide_name,
@@ -88,48 +92,63 @@ def process_wsi(wsi_path, model, config, transform, device, output_dir, class_na
             "predicted_class": class_names[pred_class],
             "predicted_class_idx": pred_class,
         }
-        
+
         # Add probabilities for each class
         for j, class_name in enumerate(class_names):
             result[f"prob_{class_name}"] = pred_probs[j]
-        
+
         results.append(result)
-    
+
     # Convert to DataFrame
     results_df = pd.DataFrame(results)
-    
+
     # Save to CSV
     if len(results) > 0:
         csv_path = os.path.join(output_dir, f"{slide_name}_results.csv")
         results_df.to_csv(csv_path, index=False)
-    
+
     return results_df
+
 
 def main():
     """Main inference function"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Stain Classification WSI Inference')
-    parser.add_argument('--checkpoint', type=str, required=True,
-                        help='Path to the model checkpoint to use')
-    parser.add_argument('--config', type=str, default='configs/train_config.yaml',
-                        help='Path to configuration file')
-    parser.add_argument('--wsi_path', type=str, required=True,
-                        help='Path to the WSI file or directory containing WSIs')
-    parser.add_argument('--output_dir', type=str,
-                        help='Directory to save inference results')
-    parser.add_argument('--save_patches', action='store_true',
-                        help='Whether to save extracted patches')
+    parser = argparse.ArgumentParser(description="Stain Classification WSI Inference")
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        required=True,
+        help="Path to the model checkpoint to use",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/train_config.yaml",
+        help="Path to configuration file",
+    )
+    parser.add_argument(
+        "--wsi_path",
+        type=str,
+        required=True,
+        help="Path to the WSI file or directory containing WSIs",
+    )
+    parser.add_argument(
+        "--output_dir", type=str, help="Directory to save inference results"
+    )
+    parser.add_argument(
+        "--save_patches", action="store_true", help="Whether to save extracted patches"
+    )
     args = parser.parse_args()
-    
+
     # Load configuration
     config = load_config(args.config)
-    
+
     # Add save_patches flag to config
     config.save_patches = args.save_patches
-    
+
     # Load checkpoint
-    checkpoint = torch.load(args.checkpoint, map_location='cpu')
-    
+    checkpoint = torch.load(args.checkpoint, map_location="cpu")
+
     # Set up output directory
     if args.output_dir:
         output_dir = args.output_dir
@@ -137,81 +156,87 @@ def main():
         run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = os.path.join(run_dir, "inferences", timestamp)
-    
+
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Set up logging
     logger = setup_logging(output_dir)
-    logger.info(f"Starting WSI inference")
+    logger.info("Starting WSI inference")
     logger.info(f"Using checkpoint: {args.checkpoint}")
-    
+
     # Set random seed
     set_seed(config.training.seed)
-    
+
     # Record environment state
     save_git_dvc_state(output_dir)
-    
+
     # Create reproducibility file
     create_reproduce_command(args, os.path.join(output_dir, "reproduce_inference.txt"))
-    
+
     # Get device
     device = get_device(config.training.device)
     logger.info(f"Using device: {device}")
-    
-    # Create validation transform (for inference)
-    from torchvision import transforms
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((config.data.image_size, config.data.image_size)),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
+
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Resize((config.data.image_size, config.data.image_size)),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+
     # Create model
     logger.info(f"Creating model: {config.model.name}")
     model = StainClassifier(config)
-    
+
     # Load model weights
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
     model.eval()
-    
+
     # Get class names from a dummy dataset
     # We don't process data here, just need class names
     dummy_dataset = StainDataset(
-        data_dir=config.data.train_dir,
-        image_size=config.data.image_size,
-        mode="test"
+        data_dir=config.data.train_dir, image_size=config.data.image_size, mode="test"
     )
     class_names = dummy_dataset.classes
-    
+
     # Process WSIs
     all_results = []
-    
+
     # Check if input is a directory or single file
     if os.path.isdir(args.wsi_path):
         # Process all WSI files in directory
-        wsi_files = [os.path.join(args.wsi_path, f) for f in os.listdir(args.wsi_path) 
-                    if f.lower().endswith(('.svs', '.tif', '.tiff', '.ndpi'))]
+        wsi_files = [
+            os.path.join(args.wsi_path, f)
+            for f in os.listdir(args.wsi_path)
+            if f.lower().endswith((".svs", ".tif", ".tiff", ".ndpi"))
+        ]
         logger.info(f"Found {len(wsi_files)} WSI files in {args.wsi_path}")
-        
+
         for wsi_file in wsi_files:
             logger.info(f"Processing WSI: {wsi_file}")
-            results_df = process_wsi(wsi_file, model, config, transform, device, output_dir, class_names)
+            results_df = process_wsi(
+                wsi_file, model, config, transform, device, output_dir, class_names
+            )
             all_results.append(results_df)
     else:
         # Process single WSI file
         logger.info(f"Processing WSI: {args.wsi_path}")
-        results_df = process_wsi(args.wsi_path, model, config, transform, device, output_dir, class_names)
+        results_df = process_wsi(
+            args.wsi_path, model, config, transform, device, output_dir, class_names
+        )
         all_results.append(results_df)
-    
+
     # Combine all results
     if all_results:
         combined_results = pd.concat(all_results, ignore_index=True)
         combined_csv_path = os.path.join(output_dir, "all_results.csv")
         combined_results.to_csv(combined_csv_path, index=False)
         logger.info(f"Combined results saved to: {combined_csv_path}")
-    
+
     logger.info(f"Inference completed. Results saved to: {output_dir}")
+
 
 if __name__ == "__main__":
     main()

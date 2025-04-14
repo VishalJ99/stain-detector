@@ -8,10 +8,12 @@ A deep learning system for detecting and classifying histological stains in whol
 ├── configs/                  # Configuration files
 │   └── train_config.yaml     # Config for training & inference defaults
 ├── data/                     # Root directory for patch data (tracked by DVC)
-│   ├── train/                # Training patches (Subdirs: PAS/, H&E/, IHC/, Silver/, Trichrome/, EVG/, etc.)
-│   ├── validation/           # Validation patches (same structure as train)
+│   ├── train/                # Training patches (Subdirs: PAS/, H&E/, IHC/, etc.)
+        ├── PAS/
+        ├── ...
+│   ├── val/                  # Validation patches (same structure as train)
 │   └── test/                 # Test patches (same structure as train)
-│   └── example_wsis/         # Example directory for WSI inference input
+├── example_wsis/             # Example directory for WSI inference input
 ├── notebooks/                # Jupyter notebooks for exploration
 ├── src/                      # Source code
 │   ├── __init__.py
@@ -24,7 +26,7 @@ A deep learning system for detecting and classifying histological stains in whol
 │   └── utils.py              # Helper functions (repro checks, WSI tiling utils)
 ├── runs/                     # Output directory for all runs
 ```
-
+Update this
 ## Installation
 
 1. Clone the repository:
@@ -54,6 +56,16 @@ Override configuration parameters:
 ```bash
 python src/train.py --config configs/train_config.yaml --run_name my_custom_run --batch_size 32 --lr 0.0005
 ```
+
+#### Sanity Check
+
+To perform a quick sanity check by overfitting to a single batch:
+
+```bash
+python src/train.py --overfit_single_batch
+```
+
+This will train the model on a single batch repeatedly, using the same batch for both training and validation. The model should quickly achieve near-perfect accuracy on this batch, verifying that the training pipeline is working correctly.
 
 ### Evaluation
 
