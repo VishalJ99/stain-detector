@@ -1,9 +1,11 @@
 import os
+import random
 import warnings
 from datetime import datetime
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import wandb
 from omegaconf import OmegaConf
 
@@ -109,6 +111,19 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
     Returns:
         tuple: (val_loss, val_accuracy)
     """
+    # Access classes attribute safely for confusion matrix
+    # Handle the case where we're using a Subset (for overfit_single_batch)
+    if hasattr(val_loader.dataset, "classes"):
+        class_names = val_loader.dataset.classes
+    elif hasattr(val_loader.dataset, "dataset") and hasattr(
+        val_loader.dataset.dataset, "classes"
+    ):
+        # For Subset objects that reference the original dataset
+        class_names = val_loader.dataset.dataset.classes
+    else:
+        # Fallback to numeric class names
+        num_classes = config.data.num_classes
+        class_names = [str(i) for i in range(num_classes)]
     model.eval()
     total_loss = 0
     correct = 0
@@ -139,7 +154,7 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
                     inputs,
                     targets,
                     predicted,
-                    val_loader.dataset.classes,
+                    class_names,
                     epoch,
                     prefix="val",
                 )
@@ -160,7 +175,7 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
             "val/confusion_matrix": wandb.plot.confusion_matrix(
                 probs=all_preds.numpy(),
                 y_true=all_targets.numpy(),
-                class_names=val_loader.dataset.classes,
+                class_names=class_names,
             ),
         }
     )
@@ -240,7 +255,11 @@ def train(config, args):
     if config.training.overfit_single_batch:
         logger.info("OVERFIT MODE: Training on a single batch for sanity check")
         # Create a DataLoader with a subset of the train dataset (just 1 batch)
-        indices = list(range(min(config.data.batch_size, len(train_dataset))))
+        # Use random indices to get a diverse batch of samples
+        all_indices = list(range(len(train_dataset)))
+        random.shuffle(all_indices)
+        indices = all_indices[: min(config.data.batch_size, len(train_dataset))]
+
         single_batch_dataset = torch.utils.data.Subset(train_dataset, indices)
 
         train_loader = torch.utils.data.DataLoader(
@@ -312,7 +331,7 @@ def train(config, args):
 
         # Update learning rate
         if scheduler is not None:
-            if isinstance(scheduler, optimizer.lr_scheduler.ReduceLROnPlateau):
+            if isinstance(scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(val_loss)
             else:
                 scheduler.step()
