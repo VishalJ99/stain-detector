@@ -111,17 +111,17 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
     Returns:
         tuple: (val_loss, val_accuracy)
     """
-    # Access classes attribute safely for confusion matrix
-    # Handle the case where we're using a Subset (for overfit_single_batch)
+    # Access classes attribute safely for confusion matrix.
+    # Handle the case where we're using a Subset (for overfit_single_batch).
     if hasattr(val_loader.dataset, "classes"):
         class_names = val_loader.dataset.classes
     elif hasattr(val_loader.dataset, "dataset") and hasattr(
         val_loader.dataset.dataset, "classes"
     ):
-        # For Subset objects that reference the original dataset
+        # For Subset objects that reference the original dataset.
         class_names = val_loader.dataset.dataset.classes
     else:
-        # Fallback to numeric class names
+        # Fallback to numeric class names.
         num_classes = config.data.num_classes
         class_names = [str(i) for i in range(num_classes)]
     model.eval()
@@ -142,11 +142,11 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            # Save predictions and targets for metrics
+            # Save predictions and targets for metrics.
             all_preds.append(torch.softmax(outputs, dim=1).cpu())
             all_targets.append(targets.cpu())
 
-            # Log sample images periodically
+            # Log sample images periodically.
             if batch_idx == 0 and epoch % 5 == 0:
                 from utils import log_batch_images
 
@@ -159,14 +159,14 @@ def validate(model, val_loader, criterion, device, config, epoch, logger):
                     prefix="val",
                 )
 
-    # Concatenate predictions and targets
+    # Concatenate predictions and targets.
     all_preds = torch.cat(all_preds, dim=0)
     all_targets = torch.cat(all_targets, dim=0)
 
     val_loss = total_loss / len(val_loader)
     val_accuracy = 100.0 * correct / total
 
-    # Log validation metrics
+    # Log validation metrics.
     wandb.log(
         {
             "val/loss": val_loss,
@@ -197,51 +197,47 @@ def train(config, args):
         args: Command line arguments
     """
 
-    # Create run name using current time + wandb name
+    # Fetch timestamp for the run.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    temp_dir = os.path.join("runs", timestamp)
-    os.makedirs(temp_dir, exist_ok=True)
 
-    # Initialize wandb - API key will be loaded from WANDB_API_KEY env var
+    # Initialize W&B experiment.
     wandb_run = wandb.init(
         project=config.logging.wandb_project,
         entity=config.logging.wandb_entity,
         config=OmegaConf.to_container(config, resolve=True),
-        dir=temp_dir,
     )
 
-    # Rename the directory to include both timestamp and wandb name
-    run_name = (
-        f"{timestamp}_{wandb_run.name}"  # e.g., "20240318_123456_radiant-sunset-42"
-    )
+    # Create a directory for the run.
+    run_name = f"{timestamp}_{wandb_run.name}"
     run_dir = os.path.join("runs", run_name)
+    os.makedirs(run_dir, exist_ok=True)
 
-    # Rename the temporary directory to include both names
-    os.rename(temp_dir, run_dir)
+    # Set wandb's run directory.
+    wandb.run.dir = run_dir
 
     logger = setup_logging(run_dir)
     logger.info(f"Starting training run: {run_name}")
     logger.info(f"W&B URL: {wandb_run.url}")
 
-    # Set random seed for reproducibility
+    # Set random seed for reproducibility.
     set_seed(config.training.seed)
 
-    # Save git and dvc status
+    # Save git and dvc status.
     save_git_dvc_state(run_dir)
 
-    # Save the exact config used for this run
+    # Save the exact config used for this run.
     config_path = os.path.join(run_dir, "config.yaml")
     with open(config_path, "w") as f:
         f.write(OmegaConf.to_yaml(config))
 
-    # Create a file with the command to reproduce this run
+    # Create a file with the command to reproduce this run.
     create_reproduce_command(args, os.path.join(run_dir, "reproduce_train.txt"))
 
-    # Get device
+    # Get device.
     device = get_device(config.training.device)
     logger.info(f"Using device: {device}")
 
-    # Create datasets and data loaders
+    # Create datasets and data loaders.
     logger.info("Creating datasets and data loaders...")
 
     train_dataset = StainDataset(
@@ -251,6 +247,9 @@ def train(config, args):
     val_dataset = StainDataset(
         data_dir=config.data.val_dir, image_size=config.data.image_size, mode="val"
     )
+
+    assert len(train_dataset.classes) == len(val_dataset.classes)
+    config.data.num_classes = len(train_dataset.classes)
 
     if config.training.overfit_single_batch:
         logger.info("OVERFIT MODE: Training on a single batch for sanity check")
@@ -292,56 +291,54 @@ def train(config, args):
             pin_memory=True,
         )
 
-    # Update config with actual number of classes
+    # Update config with actual number of classes.
     config.data.num_classes = len(train_dataset.classes)
     logger.info(f"Number of classes: {config.data.num_classes}")
     logger.info(f"Class names: {train_dataset.classes}")
 
-    # Create model
+    # Create model.
     logger.info(f"Creating model: {config.model.name}")
     model = StainClassifier(config)
     model = model.to(device)
 
-    # Log model architecture
+    # Log model architecture.
     wandb.watch(model, log="all", log_freq=100)
 
-    # Create loss function, optimizer, and scheduler
+    # Create loss function, optimizer, and scheduler.
     criterion = nn.CrossEntropyLoss()
     optimizer = get_optimizer(model, config)
     scheduler = get_scheduler(optimizer, config)
 
-    # Create directory for checkpoints
+    # Create directory for checkpoints.
     checkpoints_dir = os.path.join(run_dir, "checkpoints")
     os.makedirs(checkpoints_dir, exist_ok=True)
 
-    # Training loop
+    # Training loop.
     logger.info("Starting training...")
     best_val_accuracy = 0
 
     for epoch in range(config.training.num_epochs):
-        # Train for one epoch
+        # Train for one epoch.
         train_loss = train_epoch(
             model, train_loader, criterion, optimizer, device, config, epoch, logger
         )
 
-        # Validate
+        # Validate.
         val_loss, val_accuracy = validate(
             model, val_loader, criterion, device, config, epoch, logger
         )
 
-        # Update learning rate
+        # Update learning rate.
         if scheduler is not None:
             if isinstance(scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(val_loss)
             else:
                 scheduler.step()
 
-            # Log learning rate
-            wandb.log(
-                {"train/lr": optimizer.param_groups[0]["lr"], "train/epoch": epoch}
-            )
+        # Log learning rate.
+        wandb.log({"train/lr": optimizer.param_groups[0]["lr"], "train/epoch": epoch})
 
-        # Save checkpoint
+        # Save checkpoint.
         checkpoint_path = os.path.join(
             checkpoints_dir, f"checkpoint_epoch_{epoch+1}.pth"
         )
@@ -355,11 +352,12 @@ def train(config, args):
                 "val_loss": val_loss,
                 "val_accuracy": val_accuracy,
                 "config": OmegaConf.to_container(config, resolve=True),
+                "classes": train_dataset.classes,
             },
             checkpoint_path,
         )
 
-        # Save best model
+        # Save best model.
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
             best_model_path = os.path.join(checkpoints_dir, "best_model.pth")
@@ -369,6 +367,7 @@ def train(config, args):
                     "model_state_dict": model.state_dict(),
                     "val_accuracy": val_accuracy,
                     "config": OmegaConf.to_container(config, resolve=True),
+                    "classes": train_dataset.classes,
                 },
                 best_model_path,
             )
@@ -383,14 +382,14 @@ def train(config, args):
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
+    # Parse command line arguments.
     args = parse_args()
 
-    # Load configuration from file
+    # Load configuration from file.
     config = load_config(args.config)
 
-    # Update configuration with command line arguments
+    # Update configuration with command line arguments.
     config = update_config_with_args(config, args)
 
-    # Start training
+    # Start training.
     train(config, args)

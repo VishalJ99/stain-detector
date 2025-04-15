@@ -148,6 +148,8 @@ def main():
 
     # Load checkpoint
     checkpoint = torch.load(args.checkpoint, map_location="cpu")
+    config.data.num_classes = checkpoint["config"]["data"]["num_classes"]
+    class_names = checkpoint["classes"]  # Get class names directly from checkpoint
 
     # Set up output directory
     if args.output_dir:
