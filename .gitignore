@@ -1,4 +1,21 @@
 .env
 data/
 /data
+example_wsis/*
 misc/
+runs/
+
+# Ignore wandb directory and its contents
+wandb/
+**/wandb/
+runs/**/wandb/
+
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.pyw
+**/*.pyz
+**/*.pywz
+
+
+commit_diff_summary.txt

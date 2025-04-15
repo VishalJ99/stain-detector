@@ -1,9 +1,6 @@
 
 data:
-  train_dir: ./data/train
-  val_dir: ./data/val
-  test_dir: ./data/test
-  num_classes: 6 # Example: Set based on actual data subdirs
+  data_dir: ./data
   image_size: 224
   batch_size: 64
   mpp: 0.5
@@ -28,13 +25,15 @@ training:
 
 inference_defaults:
   patch_size: ${data.image_size}
-  mpp: ${data.mpp}       # Microns-per-pixel (~20x)
   num_patches: 1000 # Max patches to sample per WSI
   tissue_threshold: 0.05 # Based on user code for HSV filtering
   overlap: 0 # Patch overlap factor (0-1)
   level: 0 # WSI level to extract patches from
   inference_batch_size: 64
+  save_patches: false
 
 logging:
   log_interval_steps: 50
   log_val_batch_idx: 0 # Index for validation batch logging (-1 to disable)
+  wandb_project: stain-detector
+  wandb_entity: temp
