@@ -46,7 +46,17 @@ def predict_patch(model, patch, transform, device):
     return pred_class, probs.cpu().numpy()[0]
 
 
-def process_wsi(wsi_path, model, config, transform, device, output_dir, class_names):
+def process_wsi(
+    wsi_path,
+    model,
+    config,
+    transform,
+    device,
+    output_dir,
+    class_names,
+    logger=None,
+    save_patches=False,
+):
     """
     Process a whole slide image for inference
 
@@ -66,14 +76,18 @@ def process_wsi(wsi_path, model, config, transform, device, output_dir, class_na
     patches = extract_patches_from_wsi(
         wsi_path=wsi_path,
         patch_size=config.inference_defaults.patch_size,
-        mpp=config.inference_defaults.mpp,
         level=config.inference_defaults.level,
         overlap=config.inference_defaults.overlap,
         num_patches=config.inference_defaults.num_patches,
         tissue_threshold=config.inference_defaults.tissue_threshold,
-        save_dir=os.path.join(output_dir, "patches", Path(wsi_path).stem)
-        if config.save_patches
+        create_debug_images=save_patches,
+        debug_output_dir=os.path.join(output_dir, "debug", Path(wsi_path).stem)
+        if save_patches
         else None,
+        save_patches_dir=os.path.join(output_dir, "patches", Path(wsi_path).stem)
+        if save_patches
+        else None,
+        logger=logger,
     )
 
     # Prepare results storage
@@ -114,6 +128,7 @@ def main():
     """Main inference function"""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Stain Classification WSI Inference")
+
     parser.add_argument(
         "--checkpoint",
         type=str,
@@ -132,19 +147,24 @@ def main():
         required=True,
         help="Path to the WSI file or directory containing WSIs",
     )
+
     parser.add_argument(
-        "--output_dir", type=str, help="Directory to save inference results"
+        "--num_patches",
+        type=int,
+        help="Number of patches to sample per WSI (default: %(default)s)",
     )
+
     parser.add_argument(
-        "--save_patches", action="store_true", help="Whether to save extracted patches"
+        "--save_patches",
+        action="store_true",
+        help="Save patches to disk",
     )
+
     args = parser.parse_args()
+    save_patches = args.save_patches
 
     # Load configuration
-    config = load_config(args.config)
-
-    # Add save_patches flag to config
-    config.save_patches = args.save_patches
+    config = load_config(args)
 
     # Load checkpoint
     checkpoint = torch.load(args.checkpoint, map_location="cpu")
@@ -152,17 +172,14 @@ def main():
     class_names = checkpoint["classes"]  # Get class names directly from checkpoint
 
     # Set up output directory
-    if args.output_dir:
-        output_dir = args.output_dir
-    else:
-        run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = os.path.join(run_dir, "inferences", timestamp)
+    run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = os.path.join(run_dir, "inferences", timestamp)
 
     os.makedirs(output_dir, exist_ok=True)
 
     # Set up logging
-    logger = setup_logging(output_dir)
+    logger = setup_logging(output_dir, log_file_name="inference.log")
     logger.info("Starting WSI inference")
     logger.info(f"Using checkpoint: {args.checkpoint}")
 
@@ -199,7 +216,9 @@ def main():
     # Get class names from a dummy dataset
     # We don't process data here, just need class names
     dummy_dataset = StainDataset(
-        data_dir=config.data.train_dir, image_size=config.data.image_size, mode="test"
+        data_dir=os.path.join(config.data.data_dir, "train"),
+        image_size=config.data.image_size,
+        mode="test",
     )
     class_names = dummy_dataset.classes
 
@@ -216,17 +235,23 @@ def main():
         ]
         logger.info(f"Found {len(wsi_files)} WSI files in {args.wsi_path}")
 
-        for wsi_file in wsi_files:
-            logger.info(f"Processing WSI: {wsi_file}")
-            results_df = process_wsi(
-                wsi_file, model, config, transform, device, output_dir, class_names
-            )
-            all_results.append(results_df)
     else:
-        # Process single WSI file
+        wsi_files = [args.wsi_path]
         logger.info(f"Processing WSI: {args.wsi_path}")
+
+    # Process each WSI file.
+    for wsi_file in wsi_files:
+        logger.info(f"Processing WSI: {wsi_file}")
         results_df = process_wsi(
-            args.wsi_path, model, config, transform, device, output_dir, class_names
+            wsi_file,
+            model,
+            config,
+            transform,
+            device,
+            output_dir,
+            class_names,
+            logger,
+            save_patches,
         )
         all_results.append(results_df)
 

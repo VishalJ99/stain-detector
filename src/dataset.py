@@ -1,7 +1,7 @@
 import os
 
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from torchvision import transforms
 
 
@@ -50,7 +50,14 @@ class StainDataset(Dataset):
                         transforms.Resize((image_size, image_size)),
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomVerticalFlip(),
-                        transforms.RandomRotation(20),
+                        transforms.RandomChoice(
+                            [
+                                transforms.RandomRotation([0, 0]),  # No rotation
+                                transforms.RandomRotation([90, 90]),  # 90 degrees
+                                transforms.RandomRotation([180, 180]),  # 180 degrees
+                                transforms.RandomRotation([270, 270]),  # 270 degrees
+                            ]
+                        ),
                         transforms.ColorJitter(
                             brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05
                         ),
@@ -91,62 +98,3 @@ class StainDataset(Dataset):
     @property
     def num_classes(self):
         return len(self.class_dirs)
-
-
-def get_data_loaders(config):
-    """Create data loaders based on configuration
-
-    Args:
-        config: Configuration object with data parameters
-
-    Returns:
-        dict: Dictionary with train, val, and test data loaders
-    """
-    image_size = config.data.image_size
-    batch_size = config.data.batch_size
-
-    # Create datasets
-    train_dataset = StainDataset(
-        data_dir=config.data.train_dir, image_size=image_size, mode="train"
-    )
-
-    val_dataset = StainDataset(
-        data_dir=config.data.val_dir, image_size=image_size, mode="val"
-    )
-
-    test_dataset = StainDataset(
-        data_dir=config.data.test_dir, image_size=image_size, mode="test"
-    )
-
-    # Create data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=4,
-        pin_memory=True,
-    )
-
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True,
-    )
-
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True,
-    )
-
-    return {
-        "train": train_loader,
-        "val": val_loader,
-        "test": test_loader,
-        "num_classes": train_dataset.num_classes,
-        "classes": train_dataset.classes,
-    }

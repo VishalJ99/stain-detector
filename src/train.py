@@ -3,13 +3,14 @@ import random
 import warnings
 from datetime import datetime
 
+import petname
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import wandb
 from omegaconf import OmegaConf
 
-from config import load_config, parse_args, update_config_with_args
+import wandb
+from config import load_config, parse_args
 from dataset import StainDataset
 from model import StainClassifier
 from utils import (
@@ -199,23 +200,23 @@ def train(config, args):
 
     # Fetch timestamp for the run.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_name = petname.generate(2, separator="-")  # e.g., "elegant-turtle"
+    run_dir = os.path.join("runs", f"{timestamp}_{run_name}")
+    os.makedirs(run_dir)
 
     # Initialize W&B experiment.
     wandb_run = wandb.init(
         project=config.logging.wandb_project,
         entity=config.logging.wandb_entity,
         config=OmegaConf.to_container(config, resolve=True),
+        dir=run_dir,
+        name=run_name,
     )
 
-    # Create a directory for the run.
-    run_name = f"{timestamp}_{wandb_run.name}"
-    run_dir = os.path.join("runs", run_name)
-    os.makedirs(run_dir, exist_ok=True)
+    # Add the run name to the config.
+    config.logging.wandb_run_name = run_name
 
-    # Set wandb's run directory.
-    wandb.run.dir = run_dir
-
-    logger = setup_logging(run_dir)
+    logger = setup_logging(run_dir, log_file_name="train.log")
     logger.info(f"Starting training run: {run_name}")
     logger.info(f"W&B URL: {wandb_run.url}")
 
@@ -241,11 +242,15 @@ def train(config, args):
     logger.info("Creating datasets and data loaders...")
 
     train_dataset = StainDataset(
-        data_dir=config.data.train_dir, image_size=config.data.image_size, mode="train"
+        data_dir=os.path.join(config.data.data_dir, "train"),
+        image_size=config.data.image_size,
+        mode="train",
     )
 
     val_dataset = StainDataset(
-        data_dir=config.data.val_dir, image_size=config.data.image_size, mode="val"
+        data_dir=os.path.join(config.data.data_dir, "val"),
+        image_size=config.data.image_size,
+        mode="val",
     )
 
     assert len(train_dataset.classes) == len(val_dataset.classes)
@@ -386,10 +391,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     # Load configuration from file.
-    config = load_config(args.config)
-
-    # Update configuration with command line arguments.
-    config = update_config_with_args(config, args)
+    config = load_config(args)
 
     # Start training.
     train(config, args)

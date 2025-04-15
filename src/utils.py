@@ -13,7 +13,7 @@ import openslide
 import seaborn as sns
 import torch
 import torch.optim as optim
-import wandb
+from PIL import Image, ImageDraw
 from sklearn.metrics import (
     auc,
     average_precision_score,
@@ -21,6 +21,8 @@ from sklearn.metrics import (
     precision_recall_curve,
     roc_curve,
 )
+
+import wandb
 
 
 def set_seed(seed):
@@ -54,7 +56,7 @@ def get_device(device=None):
     return torch.device(device)
 
 
-def setup_logging(log_dir=None):
+def setup_logging(log_dir=None, log_file_name=None):
     """
     Set up logging configuration
 
@@ -71,7 +73,7 @@ def setup_logging(log_dir=None):
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(levelname)s - %(funcName)s - %(message)s"
     )
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
@@ -79,8 +81,7 @@ def setup_logging(log_dir=None):
     # Create file handler if log_dir is provided
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = os.path.join(log_dir, f"stain_detector_{timestamp}.log")
+        log_file = os.path.join(log_dir, log_file_name)
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter(
@@ -266,100 +267,209 @@ def is_tissue(patch, threshold=0.05):
 
 def extract_patches_from_wsi(
     wsi_path,
-    patch_size,
-    mpp=None,
+    patch_size=256,
+    overlap=0.25,
     level=0,
-    overlap=0,
-    num_patches=1000,
     tissue_threshold=0.05,
-    save_dir=None,
+    create_debug_images=True,
+    debug_output_dir=None,
+    num_patches=1000,
+    save_patches_dir=None,
+    logger=None,
 ):
     """
-    Extract patches from a whole slide image (WSI)
+    Extract random patches from tissue regions in a whole slide image (WSI)
 
     Args:
         wsi_path (str): Path to the WSI file
         patch_size (int): Size of the patches to extract
-        mpp (float, optional): Target microns-per-pixel (for resolution normalization)
-        level (int): WSI pyramid level to extract from
         overlap (float): Overlap between patches (0-1)
-        num_patches (int): Maximum number of patches to extract
+        level (int): WSI pyramid level to extract from
         tissue_threshold (float): Minimum tissue percentage threshold
-        save_dir (str, optional): Directory to save patches if needed
+        create_debug_images (bool): Whether to create debug overlay images
+        debug_output_dir (str, optional): Directory to save debug images
+        num_patches (int): Maximum number of patches to extract
+        save_patches_dir (str, optional): Directory to save extracted patches as images
 
     Returns:
-        list: List of patch images as numpy arrays
+        list: List of tissue patches as numpy arrays
     """
-    # Open the WSI
+    # Create output directory if needed for debug images
+    if create_debug_images:
+        assert (
+            debug_output_dir is not None
+        ), "debug_output_dir must be provided when create_debug_images=True"
+        os.makedirs(debug_output_dir, exist_ok=True)
+
+    # Create directory for saving patches if specified
+    if save_patches_dir:
+        os.makedirs(save_patches_dir, exist_ok=True)
+
+    # Open the slide
+    if logger:
+        logger.info(f"Opening slide: {wsi_path}")
     slide = openslide.OpenSlide(wsi_path)
-
-    # Handle resolution normalization if mpp is specified
-    if mpp is not None and hasattr(slide, "properties"):
-        base_mpp_x = float(slide.properties.get(openslide.PROPERTY_NAME_MPP_X, mpp))
-        base_mpp_y = float(slide.properties.get(openslide.PROPERTY_NAME_MPP_Y, mpp))
-
-        # Calculate the level that most closely matches the desired mpp
-        base_mpp = (base_mpp_x + base_mpp_y) / 2
-        scale_factor = mpp / base_mpp
-
-        # Find closest level
-        level_downsamples = slide.level_downsamples
-
-        for i in range(len(level_downsamples)):
-            if level_downsamples[i] >= scale_factor:
-                level = i
-                break
-
-    # Get dimensions at the target level
     width, height = slide.level_dimensions[level]
 
-    # Calculate step size with overlap consideration
-    step_size = int(patch_size * (1 - overlap))
-
-    # Generate grid coordinates
-    x_coords = list(range(0, width - patch_size + 1, step_size))
-    y_coords = list(range(0, height - patch_size + 1, step_size))
-
-    # Shuffle coordinates for random sampling
-    coords = [(x, y) for x in x_coords for y in y_coords]
-    random.shuffle(coords)
-
-    # Extract patches
+    # Initialize tracking
     patches = []
-    slide_name = os.path.splitext(os.path.basename(wsi_path))[0]
+    count = 0
 
-    for i, (x, y) in enumerate(coords):
-        if len(patches) >= num_patches:
-            break
+    # Calculate downsample factor based on slide size
+    scale_factor = 1 / 16 if create_debug_images else 1 / min(32, width // 4000)
+    thumb_width = int(width * scale_factor)
+    thumb_height = int(height * scale_factor)
 
-        # Extract patch
-        patch = np.array(
-            slide.read_region(
-                (
-                    x * int(slide.level_downsamples[level]),
-                    y * int(slide.level_downsamples[level]),
-                ),
-                level,
-                (patch_size, patch_size),
-            )
+    if logger:
+        logger.info(f"Creating thumbnail at resolution {thumb_width}x{thumb_height}")
+    thumbnail = slide.get_thumbnail((thumb_width, thumb_height)).convert("RGB")
+    thumbnail_np = np.array(thumbnail)
+
+    # Create debug overlay image
+    if create_debug_images:
+        downsampled = thumbnail.copy()
+        draw = ImageDraw.Draw(downsampled)
+
+    # Apply tissue detection to thumbnail
+    hsv = cv2.cvtColor(thumbnail_np, cv2.COLOR_RGB2HSV)
+    saturation = hsv[:, :, 1]
+    value = hsv[:, :, 2]
+    tissue_mask = (saturation > 20) & (value < 230)
+
+    # Optional: Clean up the mask with morphological operations
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    tissue_mask = cv2.morphologyEx(tissue_mask.astype(np.uint8), cv2.MORPH_OPEN, kernel)
+    tissue_mask = cv2.morphologyEx(tissue_mask, cv2.MORPH_CLOSE, kernel)
+
+    # Save the tissue mask if in debug mode
+    if create_debug_images:
+        mask_path = os.path.join(debug_output_dir, "tissue_mask_thumbnail.png")
+        Image.fromarray((tissue_mask * 255).astype(np.uint8)).save(mask_path)
+        thumbnail.save(os.path.join(debug_output_dir, "thumbnail.png"))
+
+    # Find coordinates of all tissue pixels in the thumbnail
+    tissue_coords = np.where(tissue_mask)
+    tissue_points = list(zip(tissue_coords[1], tissue_coords[0]))  # (x, y) format
+
+    if not tissue_points:
+        if logger:
+            logger.info("No tissue regions found in the slide")
+        slide.close()
+        return patches
+
+    # Calculate thumbnail patch size for checking neighboring pixels
+    thumb_patch_size = int(patch_size * scale_factor)
+
+    # Randomly sample from tissue regions
+    if logger:
+        logger.info(
+            f"Randomly sampling up to {num_patches} patches from tissue regions"
         )
 
-        # Convert from RGBA to RGB
-        patch = patch[:, :, :3]
+    # Keep track of already sampled regions to avoid overlap
+    sampled_regions = set()
+    max_attempts = num_patches * 10  # Limit attempts to avoid infinite loop
+    attempts = 0
 
-        # Check if patch contains enough tissue
-        if is_tissue(patch, threshold=tissue_threshold):
-            patches.append(patch)
+    while count < num_patches and attempts < max_attempts:
+        attempts += 1
 
-            # Save patch if save_dir is provided
-            if save_dir:
-                os.makedirs(save_dir, exist_ok=True)
-                patch_filename = f"{slide_name}_level{level}_x{x}_y{y}.png"
-                patch_path = os.path.join(save_dir, patch_filename)
-                cv2.imwrite(patch_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+        # Randomly select a tissue point from the mask
+        if not tissue_points:
+            break
 
+        point_idx = np.random.randint(0, len(tissue_points))
+        thumb_x, thumb_y = tissue_points[point_idx]
+
+        # Check if we have enough space for a patch
+        if (
+            thumb_x + thumb_patch_size >= thumbnail_np.shape[1]
+            or thumb_y + thumb_patch_size >= thumbnail_np.shape[0]
+        ):
+            continue
+
+        # Verify this region has enough tissue
+        region = tissue_mask[
+            thumb_y : thumb_y + thumb_patch_size, thumb_x : thumb_x + thumb_patch_size
+        ]
+        tissue_percentage = np.sum(region) / region.size
+
+        if tissue_percentage <= tissue_threshold:
+            continue
+
+        # Map to full resolution coordinates
+        full_x = int(thumb_x / scale_factor)
+        full_y = int(thumb_y / scale_factor)
+
+        # Create a region key to avoid overlap
+        region_key = (full_x // (patch_size // 4), full_y // (patch_size // 4))
+        if region_key in sampled_regions:
+            continue
+
+        sampled_regions.add(region_key)
+
+        # Extract full resolution patch
+        patch_pil = slide.read_region(
+            (full_x, full_y), level, (patch_size, patch_size)
+        ).convert("RGB")
+        patch_np = np.array(patch_pil)
+
+        # Final verification on the full resolution patch
+        should_infer = is_tissue_patch(patch_np, tissue_threshold)
+
+        if should_infer:
+            patches.append(patch_np)
+
+            # Save patch to disk if directory is provided
+            if save_patches_dir:
+                patch_filename = f"patch_{count}_x{full_x}_y{full_y}.png"
+                patch_path = os.path.join(save_patches_dir, patch_filename)
+                Image.fromarray(patch_np).save(patch_path)
+
+            count += 1
+
+        # Draw debug visualization
+        if create_debug_images:
+            rect = [
+                thumb_x,
+                thumb_y,
+                thumb_x + thumb_patch_size,
+                thumb_y + thumb_patch_size,
+            ]
+            draw.rectangle(rect, outline="green" if should_infer else "red", width=1)
+
+    # Save debug overlay
+    if create_debug_images:
+        debug_path = os.path.join(debug_output_dir, "patch_debug_overlay.png")
+        downsampled.save(debug_path)
+
+    if logger:
+        logger.info(
+            f"Extracted {count} patches from {wsi_path} after {attempts} attempts"
+        )
     slide.close()
     return patches
+
+
+def is_tissue_patch(patch_np, threshold=0.05):
+    """
+    Determine if a patch contains tissue based on HSV thresholding
+
+    Args:
+        patch_np (numpy.ndarray): RGB image patch
+        threshold (float): Minimum tissue percentage threshold
+
+    Returns:
+        bool: True if the patch contains enough tissue, False otherwise
+    """
+    # HSV-based tissue filtering (using original criteria)
+    hsv = cv2.cvtColor(patch_np, cv2.COLOR_RGB2HSV)
+    saturation = hsv[:, :, 1]
+    value = hsv[:, :, 2]
+
+    tissue_mask = (saturation > 20) & (value < 230)
+    tissue_percentage = np.sum(tissue_mask) / (patch_np.shape[0] * patch_np.shape[1])
+    return tissue_percentage > threshold
 
 
 def save_metrics(all_preds, all_targets, class_names, output_dir):
