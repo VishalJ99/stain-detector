@@ -56,38 +56,48 @@ def get_device(device=None):
     return torch.device(device)
 
 
-def setup_logging(log_dir=None, log_file_name=None):
+def setup_logging(name, log_dir=None, log_file_name=None):
     """
-    Set up logging configuration
+    Set up root logging configuration
 
     Args:
+        name (str): Name of the logger (typically __name__)
         log_dir (str, optional): Directory to save log files
+        log_file_name (str, optional): Name of the log file
 
     Returns:
-        logging.Logger: Configured logger
+        logging.Logger: Configured logger instance
     """
-    logger = logging.getLogger("stain_detector")
+    # Configure the logger with the provided name
+    logger = logging.getLogger(name)
+
+    # Clear any existing handlers to avoid duplicates
+    if logger.handlers:
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+
     logger.setLevel(logging.INFO)
+
+    # Create a consistent log format for both console and file
+    log_format = "%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s"
+    formatter = logging.Formatter(log_format)
 
     # Create console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(funcName)s - %(message)s"
-    )
-    console_handler.setFormatter(console_formatter)
+    console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
     # Create file handler if log_dir is provided
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
+        if not log_file_name:
+            log_file_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+
         log_file = os.path.join(log_dir, log_file_name)
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        file_handler.setFormatter(file_formatter)
+        file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
     return logger

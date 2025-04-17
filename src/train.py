@@ -1,3 +1,4 @@
+import argparse
 import os
 import random
 import warnings
@@ -10,7 +11,7 @@ import torch.optim as optim
 from omegaconf import OmegaConf
 
 import wandb
-from config import load_config, parse_args
+from config import get_base_parser, load_config_from_args
 from dataset import StainDataset
 from model import StainClassifier
 from utils import (
@@ -201,7 +202,7 @@ def train(config, args):
     # Fetch timestamp for the run.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_name = petname.generate(2, separator="-")  # e.g., "elegant-turtle"
-    run_dir = os.path.join("runs", f"{timestamp}_{run_name}")
+    run_dir = os.path.join(config.logging.run_dir, f"{timestamp}_{run_name}")
     os.makedirs(run_dir)
 
     # Initialize W&B experiment.
@@ -216,7 +217,7 @@ def train(config, args):
     # Add the run name to the config.
     config.logging.wandb_run_name = run_name
 
-    logger = setup_logging(run_dir, log_file_name="train.log")
+    logger = setup_logging(name="train", log_dir=run_dir, log_file_name="train.log")
     logger.info(f"Starting training run: {run_name}")
     logger.info(f"W&B URL: {wandb_run.url}")
 
@@ -241,22 +242,28 @@ def train(config, args):
     # Create datasets and data loaders.
     logger.info("Creating datasets and data loaders...")
 
+    # Check if num_classes is already defined in config
+    expected_num_classes = config.data.get("num_classes", None)
+
     train_dataset = StainDataset(
-        data_dir=os.path.join(config.data.data_dir, "train"),
+        data_dir=config.data.train_dir,
         image_size=config.data.image_size,
         mode="train",
+        expected_num_classes=expected_num_classes,
     )
 
     val_dataset = StainDataset(
-        data_dir=os.path.join(config.data.data_dir, "val"),
+        data_dir=config.data.val_dir,
         image_size=config.data.image_size,
         mode="val",
+        expected_num_classes=expected_num_classes,
+    )
+    assert len(train_dataset.classes) == len(val_dataset.classes), (
+        f"Train and val sets have different number of classes: "
+        f"{len(train_dataset.classes)} vs {len(val_dataset.classes)}"
     )
 
-    assert len(train_dataset.classes) == len(val_dataset.classes)
-    config.data.num_classes = len(train_dataset.classes)
-
-    if config.training.overfit_single_batch:
+    if args.overfit_single_batch:
         logger.info("OVERFIT MODE: Training on a single batch for sanity check")
         # Create a DataLoader with a subset of the train dataset (just 1 batch)
         # Use random indices to get a diverse batch of samples
@@ -296,18 +303,13 @@ def train(config, args):
             pin_memory=True,
         )
 
-    # Update config with actual number of classes.
-    config.data.num_classes = len(train_dataset.classes)
-    logger.info(f"Number of classes: {config.data.num_classes}")
-    logger.info(f"Class names: {train_dataset.classes}")
-
     # Create model.
     logger.info(f"Creating model: {config.model.name}")
     model = StainClassifier(config)
     model = model.to(device)
 
-    # Log model architecture.
-    wandb.watch(model, log="all", log_freq=100)
+    # Log model parameters and gradients to W&B for visualization.
+    wandb.watch(model, log="all", log_freq=config.logging.log_interval_steps)
 
     # Create loss function, optimizer, and scheduler.
     criterion = nn.CrossEntropyLoss()
@@ -388,10 +390,26 @@ def train(config, args):
 
 if __name__ == "__main__":
     # Parse command line arguments.
-    args = parse_args()
+    parser = argparse.ArgumentParser(
+        description="Train a stain classifier", parents=[get_base_parser()]
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to the config file",
+    )
+
+    parser.add_argument(
+        "--overfit_single_batch",
+        action="store_true",
+        help="Overfit to a single batch as a sanity check",
+    )
+
+    args = parser.parse_args()
 
     # Load configuration from file.
-    config = load_config(args)
+    config = load_config_from_args(args)
 
     # Start training.
     train(config, args)

@@ -1,20 +1,31 @@
+import logging
 import os
 
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+logger = logging.getLogger(__name__)
+
 
 class StainDataset(Dataset):
     """Dataset for stain detection from images"""
 
-    def __init__(self, data_dir, image_size=224, transform=None, mode="train"):
+    def __init__(
+        self,
+        data_dir,
+        expected_num_classes,
+        image_size=224,
+        transform=None,
+        mode="train",
+    ):
         """
         Args:
             data_dir (str): Directory with class subdirectories of images
             image_size (int): Size to resize images to
             transform (callable, optional): Optional transform to apply to images
             mode (str): 'train', 'val', or 'test' mode
+            expected_num_classes (int, optional): Expected number of classes from config
         """
         self.data_dir = data_dir
         self.image_size = image_size
@@ -25,6 +36,17 @@ class StainDataset(Dataset):
             d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))
         ]
         self.class_dirs.sort()  # Ensure consistent ordering
+
+        # Validate number of classes if expected value is provided
+        actual_num_classes = len(self.class_dirs)
+        if actual_num_classes != expected_num_classes:
+            error_msg = (
+                f"Expected {expected_num_classes} classes in {data_dir}, "
+                f"but found {actual_num_classes}. Class directories: {self.class_dirs}"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         self.class_to_idx = {cls: i for i, cls in enumerate(self.class_dirs)}
 
         # Collect image paths and labels

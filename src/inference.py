@@ -8,8 +8,7 @@ import torch
 from torchvision import transforms
 from tqdm import tqdm
 
-from config import load_config
-from dataset import StainDataset
+from config import get_base_parser, load_config_from_args
 from model import StainClassifier
 from utils import (
     create_reproduce_command,
@@ -87,7 +86,6 @@ def process_wsi(
         save_patches_dir=os.path.join(output_dir, "patches", Path(wsi_path).stem)
         if save_patches
         else None,
-        logger=logger,
     )
 
     # Prepare results storage
@@ -127,7 +125,9 @@ def process_wsi(
 def main():
     """Main inference function"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Stain Classification WSI Inference")
+    parser = argparse.ArgumentParser(
+        description="Stain Classification WSI Inference", parents=[get_base_parser()]
+    )
 
     parser.add_argument(
         "--checkpoint",
@@ -138,7 +138,6 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/train_config.yaml",
         help="Path to configuration file",
     )
     parser.add_argument(
@@ -146,12 +145,6 @@ def main():
         type=str,
         required=True,
         help="Path to the WSI file or directory containing WSIs",
-    )
-
-    parser.add_argument(
-        "--num_patches",
-        type=int,
-        help="Number of patches to sample per WSI (default: %(default)s)",
     )
 
     parser.add_argument(
@@ -164,12 +157,7 @@ def main():
     save_patches = args.save_patches
 
     # Load configuration
-    config = load_config(args)
-
-    # Load checkpoint
-    checkpoint = torch.load(args.checkpoint, map_location="cpu")
-    config.data.num_classes = checkpoint["config"]["data"]["num_classes"]
-    class_names = checkpoint["classes"]  # Get class names directly from checkpoint
+    config = load_config_from_args(args)
 
     # Set up output directory
     run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
@@ -179,9 +167,15 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Set up logging
-    logger = setup_logging(output_dir, log_file_name="inference.log")
+    logger = setup_logging(
+        name="inference", log_dir=output_dir, log_file_name="inference.log"
+    )
     logger.info("Starting WSI inference")
     logger.info(f"Using checkpoint: {args.checkpoint}")
+
+    # Load checkpoint
+    checkpoint = torch.load(args.checkpoint, map_location="cpu")
+    class_names = checkpoint["classes"]
 
     # Set random seed
     set_seed(config.training.seed)
@@ -212,15 +206,6 @@ def main():
     model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
     model.eval()
-
-    # Get class names from a dummy dataset
-    # We don't process data here, just need class names
-    dummy_dataset = StainDataset(
-        data_dir=os.path.join(config.data.data_dir, "train"),
-        image_size=config.data.image_size,
-        mode="test",
-    )
-    class_names = dummy_dataset.classes
 
     # Process WSIs
     all_results = []
