@@ -103,6 +103,91 @@ def setup_logging(name, log_dir=None, log_file_name=None):
     return logger
 
 
+def check_git_dvc_clean():
+    """
+    Check if git and dvc have uncommitted changes.
+
+    Returns:
+        tuple: (is_clean, details_dict)
+            - is_clean (bool): True if both git and dvc are clean
+            - details_dict (dict): Details about git and dvc state
+    """
+    details = {}
+    is_clean = True
+
+    # Check git status
+    try:
+        git_status = (
+            subprocess.check_output(["git", "status", "--porcelain"])
+            .decode("utf-8")
+            .strip()
+        )
+
+        git_is_clean = not git_status
+        details["git"] = {
+            "is_clean": git_is_clean,
+            "status": git_status.split("\n") if git_status else [],
+        }
+
+        if not git_is_clean:
+            is_clean = False
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        details["git"] = {"error": "Git information not available"}
+
+    # Check dvc status
+    try:
+        dvc_status = subprocess.check_output(["dvc", "status"]).decode("utf-8").strip()
+        dvc_is_clean = not dvc_status or "up to date" in dvc_status.lower()
+
+        details["dvc"] = {
+            "is_clean": dvc_is_clean,
+            "status": dvc_status.split("\n") if dvc_status else ["Up to date"],
+        }
+
+        if not dvc_is_clean:
+            is_clean = False
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        details["dvc"] = {"error": "DVC information not available"}
+
+    return is_clean, details
+
+
+def log_unclean_state(details):
+    """
+    Log warnings about uncommitted changes in git/dvc repositories.
+
+    Args:
+        details (dict): Details about git/dvc state from check_git_dvc_clean
+    """
+    # Set up basic logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger("git-dvc-check")
+
+    logger.warning("⚠️ Uncommitted changes detected in git/dvc repositories!")
+
+    if details["git"].get("status"):
+        logger.warning("Git changes:")
+        for item in details["git"]["status"]:
+            logger.warning(f"  {item}")
+
+    if details["dvc"].get("status") and "Up to date" not in details["dvc"]["status"]:
+        logger.warning("DVC changes:")
+        for item in details["dvc"]["status"]:
+            if item:  # Skip empty lines
+                logger.warning(f"  {item}")
+
+    logger.warning(
+        "⚠️ To ensure reproducibility, please commit all changes "
+        "before running or use a debug flag for experimentation."
+    )
+
+
 def save_git_dvc_state(output_dir):
     """
     Save git and dvc state information for reproducibility

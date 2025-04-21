@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import sys
 import warnings
 from datetime import datetime
 
@@ -15,10 +16,12 @@ from config import get_base_parser, load_config_from_args
 from dataset import StainDataset
 from model import StainClassifier
 from utils import (
+    check_git_dvc_clean,
     create_reproduce_command,
     get_device,
     get_optimizer,
     get_scheduler,
+    log_unclean_state,
     save_git_dvc_state,
     set_seed,
     setup_logging,
@@ -407,6 +410,13 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # Check for uncommitted changes if we're not in debug mode
+    if not args.overfit_single_batch:
+        is_clean, details = check_git_dvc_clean()
+        if not is_clean:
+            log_unclean_state(details)
+            sys.exit(1)
 
     # Load configuration from file.
     config = load_config_from_args(args)
