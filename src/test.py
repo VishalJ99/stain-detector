@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 
 import torch
@@ -10,8 +11,10 @@ from config import get_base_parser, load_config_from_args
 from dataset import StainDataset
 from model import StainClassifier
 from utils import (
+    check_git_dvc_clean,
     create_reproduce_command,
     get_device,
+    log_unclean_state,
     save_git_dvc_state,
     save_metrics,
     set_seed,
@@ -188,4 +191,10 @@ def main():
 
 
 if __name__ == "__main__":
+    # Check for uncommitted changes
+    is_clean, details = check_git_dvc_clean()
+    if not is_clean:
+        log_unclean_state(details)
+        sys.exit(1)
+
     main()

@@ -169,21 +169,25 @@ def log_unclean_state(details):
     )
     logger = logging.getLogger("git-dvc-check")
 
-    logger.warning("⚠️ Uncommitted changes detected in git/dvc repositories!")
-
+    logger.warning("⚠️  Uncommitted changes detected in git/dvc repositories!")
+    logger.warning("-" * 80)
     if details["git"].get("status"):
         logger.warning("Git changes:")
         for item in details["git"]["status"]:
             logger.warning(f"  {item}")
 
+    logger.warning("")
     if details["dvc"].get("status") and "Up to date" not in details["dvc"]["status"]:
         logger.warning("DVC changes:")
         for item in details["dvc"]["status"]:
             if item:  # Skip empty lines
                 logger.warning(f"  {item}")
 
+    # Add a blank line before the final warning
+    logger.warning("-" * 80)
+
     logger.warning(
-        "⚠️ To ensure reproducibility, please commit all changes "
+        "⚠️  To ensure reproducibility, please commit all changes "
         "before running or use a debug flag for experimentation."
     )
 
