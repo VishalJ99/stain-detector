@@ -1,0 +1,26 @@
+# Full paths for SVS files
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_4b7101fd-ec87-4322-991d-367881e6786b.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_5f866441-66c8-4197-847f-90c49a6e7e34.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_06d2d26b-2d20-4faf-b8d2-da4d39d15372.svs
+
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_9f6066c1-cc98-4564-ae8f-96837f97ab4b.svs (skip hnE / keep for val set)
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_13e5ea7a-d233-4638-89ae-1539a65d8f55.svs (x<36287, x>72013, y<10000, y>83000)
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_044e6863-5141-447c-9809-0812fb2b6458.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_664d598a-1220-4511-8c32-2a5e32ed02ce.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_455980fa-609b-4c16-8f92-b000d9cbc948.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_bc7b7a35-c441-4028-ad8d-659bd70afb5c.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_d3ad1101-748e-4a3b-bea7-017c8fdb6252.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_0d18e00a-5eb2-4566-81b6-6d0c765952e8.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_0f6afef5-5ea3-4cfb-8bde-8cdd36ae0872.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1b7209cf-4f44-4475-b436-4502e6c5cc68.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1d2d5cc2-7200-448b-9d23-50e0c23f45c5.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1e61396e-7679-4c0c-8695-7a06f4f37313.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2fb857b2-43bd-4533-b9dc-88c79cf8f1ba.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2fc9d69b-1657-4b49-ad5f-bccefcf65c94.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_3bceff81-1928-423c-a793-67b81c6d8510.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_3c3a00e6-11bd-4e5f-a961-36e7658228be.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_04d9cd43-8f11-469c-9ad6-abef5288651e.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_4ea68c5d-8a39-446d-8036-f02c11fe261e.svs

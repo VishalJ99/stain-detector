@@ -1,0 +1,56 @@
+# Full paths for SVS files
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_4bdcfc4d-d900-4590-b508-7e22d23b96db.svs
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_4edd5899-2e35-4a95-a928-eaf4ae7001d3.svs
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_22903a25-0d9c-4472-bdcf-fa8acc176d4b.svs
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_b0062c66-1d19-4372-b396-4781e9543885.svs
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_f13b8046-d923-41b3-9573-913c7b7c99eb.svs
+
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_0eadb9aa-792c-4cc0-9182-0f45d2242192.svs
+
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_0fd6de92-9201-4115-a2cb-45e02132e13c.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2cfcf2e2-a6f5-4e72-9bdd-cf1e09094508.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2df2f080-f778-458a-8351-1395a1020f4b.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_3f4e3704-b7a5-42f5-8560-762f0fc31ee5.svs
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_4b53afcf-de66-4b3e-91c2-8b3523af1528.svs
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_0d240a26-a376-41a2-bf75-c30c5ecb8f82.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_3e23deb0-b658-4d07-9495-59edf2d8bce4.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_5e3eba26-aae2-48af-9f15-c64f323d538e.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_9f6066c1-cc98-4564-ae8f-96837f97ab4b.svs
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_13e5ea7a-d233-4638-89ae-1539a65d8f55.svs
+
+----------------NOT PAS----------------------
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_044e6863-5141-447c-9809-0812fb2b6458.svs (HnE) - 1000
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs (x<32000, y<40000, y>60000, x>53000) - 500
+
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_664d598a-1220-4511-8c32-2a5e32ed02ce.svs (y>40000, x>80000) - 1000
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (y<16000, x>107000, y>60000) - 1000
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_455980fa-609b-4c16-8f92-b000d9cbc948.svs (x<30000, x>170000, y<8000, y>80000)
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_bc7b7a35-c441-4028-ad8d-659bd70afb5c.svs (skip enough hne)
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_d3ad1101-748e-4a3b-bea7-017c8fdb6252.svs (skip enough hne)
+/mnt/leica/anonymousImages_20240628/2024-10-02/
+anon_0d18e00a-5eb2-4566-81b6-6d0c765952e8.svs (y>55000, x>90000)
+
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_0f6afef5-5ea3-4cfb-8bde-8cdd36ae0872.svs (skip hne)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1b7209cf-4f44-4475-b436-4502e6c5cc68.svs (skip background too noisy)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1d2d5cc2-7200-448b-9d23-50e0c23f45c5.svs (skip HnE)
+
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_1e61396e-7679-4c0c-8695-7a06f4f37313.svs (x<44000, y<15000,y>41000, x>56000)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2fb857b2-43bd-4533-b9dc-88c79cf8f1ba.svs (skip hne)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_2fc9d69b-1657-4b49-ad5f-bccefcf65c94.svs (x<96000, x>108000, y<15000, y>71000)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_3bceff81-1928-423c-a793-67b81c6d8510.svs (x<48000,x>65000,y<3000, y>60000) - 500 (bright hne)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_3c3a00e6-11bd-4e5f-a961-36e7658228be.svs (hne skipped)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_04d9cd43-8f11-469c-9ad6-abef5288651e.svs (hne skipped)
+/mnt/leica/anonymousImages_20240628/2024-10-02/anon_4ea68c5d-8a39-446d-8036-f02c11fe261e.svs (hne skipped)
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_0d240a26-a376-41a2-bf75-c30c5ecb8f82.svs (x>47000,y>72000)
+
+/mnt/leica/anonymousImages_20240628/2024-07-04/anon_5e3eba26-aae2-48af-9f15-c64f323d538e.svs (x>18000)
