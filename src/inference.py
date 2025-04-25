@@ -232,15 +232,9 @@ def main():
         wsi_files += glob.glob(
             os.path.join(args.wsi_path, "**", "*.tif"), recursive=True
         )
-        logger.info(f"Found {len(wsi_files)} WSI files in {args.wsi_path}")
-
-        # Process all WSI files in directory
-        wsi_files = [
-            os.path.join(args.wsi_path, f)
-            for f in os.listdir(args.wsi_path)
-            if f.lower().endswith((".svs", ".tif", ".tiff", ".ndpi"))
-        ]
-        logger.info(f"Found {len(wsi_files)} WSI files in {args.wsi_path}")
+        logger.info(
+            f"Found {len(wsi_files)} WSI files in (or subdirs of) {args.wsi_path}"
+        )
 
     else:
         wsi_files = [args.wsi_path]
