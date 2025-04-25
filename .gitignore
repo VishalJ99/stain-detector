@@ -1,6 +1,8 @@
 .env
-data/**
-!data/**/*.dvc
+data/**/*.svs
+data/**/*.tif
+data/**/*.png
+
 example_wsis/*
 runs/
 

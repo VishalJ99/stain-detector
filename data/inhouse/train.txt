@@ -17,7 +17,5 @@ EVG - 1000 each
 IHC-1000 each
 /vol/biomedic3/histopatho/win_share/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs (IHC x>53052, y<25378, x<34588, y>64119)
 
-Silver-1000 each 
+Silver-1000 each
 /vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (Silver x>109962, y<13390, x<14840, y>68128)
-
-

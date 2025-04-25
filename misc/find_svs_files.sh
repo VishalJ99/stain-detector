@@ -15,12 +15,12 @@ while IFS= read -r file_id || [[ -n "$file_id" ]]; do
   if [[ -z "$file_id" ]]; then
     continue
   fi
-  
+
   echo "Searching for $file_id.svs"
-  
+
   # Use find command to locate the file
   result=$(find /vol/biomedic3/histopatho/win_share -type f -name "$file_id.svs" 2>/dev/null)
-  
+
   if [[ -n "$result" ]]; then
     echo "Found: $file_id → $result"
     echo "$result" >> "$output_file"
@@ -30,4 +30,4 @@ while IFS= read -r file_id || [[ -n "$file_id" ]]; do
   fi
 done < file_ids.txt
 
-echo "Search completed. Results saved in $output_file" 
+echo "Search completed. Results saved in $output_file"
