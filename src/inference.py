@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -11,9 +12,11 @@ from tqdm import tqdm
 from config import get_base_parser, load_config_from_args
 from model import StainClassifier
 from utils import (
+    check_git_dvc_clean,
     create_reproduce_command,
     extract_patches_from_wsi,
     get_device,
+    log_unclean_state,
     save_git_dvc_state,
     set_seed,
     setup_logging,
@@ -154,6 +157,14 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if "example_wsis" not in args.wsi_path:
+        # Running on an actual case, so check for uncommitted changes.
+        is_clean, details = check_git_dvc_clean()
+        if not is_clean:
+            log_unclean_state(details)
+            sys.exit(1)
+
     save_patches = args.save_patches
 
     # Load configuration
@@ -190,6 +201,7 @@ def main():
     device = get_device(config.training.device)
     logger.info(f"Using device: {device}")
 
+    # TODO: Move this normalisation to a transforms.py script and avoid hardcoding.
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -242,10 +254,35 @@ def main():
 
     # Combine all results
     if all_results:
+        # Save patch-level results
         combined_results = pd.concat(all_results, ignore_index=True)
-        combined_csv_path = os.path.join(output_dir, "all_results.csv")
-        combined_results.to_csv(combined_csv_path, index=False)
-        logger.info(f"Combined results saved to: {combined_csv_path}")
+        patch_csv_path = os.path.join(output_dir, "all_results_patch_level.csv")
+        combined_results.to_csv(patch_csv_path, index=False)
+
+        # Generate WSI-level results (mode of patch predictions)
+        wsi_results = []
+        for slide_name in combined_results["slide_name"].unique():
+            slide_patches = combined_results[
+                combined_results["slide_name"] == slide_name
+            ]
+            # Get most common predicted class
+            mode_class_idx = slide_patches["predicted_class_idx"].mode().iloc[0]
+            mode_class = class_names[mode_class_idx]
+
+            wsi_result = {
+                "slide_name": slide_name,
+                "predicted_class": mode_class,
+                "predicted_class_idx": mode_class_idx,
+                "patch_count": len(slide_patches),
+            }
+            wsi_results.append(wsi_result)
+
+        wsi_df = pd.DataFrame(wsi_results)
+        wsi_csv_path = os.path.join(output_dir, "all_results_wsi.csv")
+        wsi_df.to_csv(wsi_csv_path, index=False)
+
+        logger.info(f"Patch-level results saved to: {patch_csv_path}")
+        logger.info(f"WSI-level results saved to: {wsi_csv_path}")
 
     logger.info(f"Inference completed. Results saved to: {output_dir}")
 
