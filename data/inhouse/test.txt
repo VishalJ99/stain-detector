@@ -1,0 +1,15 @@
+PAS
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_4bdcfc4d-d900-4590-b508-7e22d23b96db.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_0eadb9aa-792c-4cc0-9182-0f45d2242192.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_0fd6de92-9201-4115-a2cb-45e02132e13c.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_2cfcf2e2-a6f5-4e72-9bdd-cf1e09094508.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_3f4e3704-b7a5-42f5-8560-762f0fc31ee5.svs
+
+EVG
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_5e3eba26-aae2-48af-9f15-c64f323d538e.svs
+
+Silver
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_2fc9d69b-1657-4b49-ad5f-bccefcf65c94.svs
+
+HnE
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_4ea68c5d-8a39-446d-8036-f02c11fe261e.svs

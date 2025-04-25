@@ -1,0 +1,21 @@
+PAS - 1000 each
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_4edd5899-2e35-4a95-a928-eaf4ae7001d3.svs (PAS x>67593,y<22463, x<6510, y>76945)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_22903a25-0d9c-4472-bdcf-fa8acc176d4b.svs (PAS x>106300, y<2684, x<50192, y>65477)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_b0062c66-1d19-4372-b396-4781e9543885.svs (PAS x>70285, y<5721, x<8310, y>40457)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_f13b8046-d923-41b3-9573-913c7b7c99eb.svs (PAS x>85358, y<7428, x<7450, y>58624)
+
+HnE - 1000 each
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_9f6066c1-cc98-4564-ae8f-96837f97ab4b.svs (HnE x>72942, y<8000, x<6000, y>37500)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_044e6863-5141-447c-9809-0812fb2b6458.svs (HnE x>75545,y<7280,x<8377, y>38275)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_d3ad1101-748e-4a3b-bea7-017c8fdb6252.svs (HnE x>88008, y<7708, x<79126, y>46511)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_455980fa-609b-4c16-8f92-b000d9cbc948.svs (HnE x>109631, y<25555, x<55844, y>57204 )
+
+EVG - 1000 each
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_0d18e00a-5eb2-4566-81b6-6d0c765952e8.svs (EVG x>92949, y<9377, x<5769, y>59125)
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_13e5ea7a-d233-4638-89ae-1539a65d8f55.svs (EVG x>91126, y<11407, x<37547, y>64987)
+
+IHC-1000 each
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs (IHC x>53052, y<25378, x<34588, y>64119)
+
+Silver-1000 each
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (Silver x>109962, y<13390, x<14840, y>68128)
