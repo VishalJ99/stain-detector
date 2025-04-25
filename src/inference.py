@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 import sys
 from datetime import datetime
@@ -224,6 +225,15 @@ def main():
 
     # Check if input is a directory or single file
     if os.path.isdir(args.wsi_path):
+        # Use glob to find all WSI files in the directory and subdirectories.
+        wsi_files = glob.glob(
+            os.path.join(args.wsi_path, "**", "*.svs"), recursive=True
+        )
+        wsi_files += glob.glob(
+            os.path.join(args.wsi_path, "**", "*.tif"), recursive=True
+        )
+        logger.info(f"Found {len(wsi_files)} WSI files in {args.wsi_path}")
+
         # Process all WSI files in directory
         wsi_files = [
             os.path.join(args.wsi_path, f)
