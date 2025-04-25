@@ -1,0 +1,31 @@
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_4b53afcf-de66-4b3e-91c2-8b3523af1528.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_4b7101fd-ec87-4322-991d-367881e6786b.svs (E)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_5f866441-66c8-4197-847f-90c49a6e7e34.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_06d2d26b-2d20-4faf-b8d2-da4d39d15372.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_8c3c6f31-285a-4d9c-a3dc-56ff04f41b8f.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_062e6852-4ccf-46f3-833a-578e00c535c8.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_69cd997f-a512-4c1a-94ae-b0b8086a46d6.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_88f87e46-0678-492d-89e7-31f0f0d93664.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_856ba7b2-71ad-4208-a315-f9d93f70650a.svs
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_0d240a26-a376-41a2-bf75-c30c5ecb8f82.svs
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_3e23deb0-b658-4d07-9495-59edf2d8bce4.svs
+
+
+
+
+/vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (Silver x>109962, y<13390, x<14840, y>68128)
+
+
+anon_bc7b7a35-c441-4028-ad8d-659bd70afb5 NOT FOUND
+anon_c790bb34-471e-45cd-a73d-170a4a362d11c NOT FOUND
+
+
+
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_1b7209cf-4f44-4475-b436-4502e6c5cc68.svs (EVG)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_1d2d5cc2-7200-448b-9d23-50e0c23f45c5.svs
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_1e61396e-7679-4c0c-8695-7a06f4f37313.svs (EVG)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_2fb857b2-43bd-4533-b9dc-88c79cf8f1ba.svs (HnE)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_3bceff81-1928-423c-a793-67b81c6d8510.svs (HnE)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_3c3a00e6-11bd-4e5f-a961-36e7658228be.svs (HnE)
+/vol/biomedic3/histopatho/win_share/2024-10-02/anon_04d9cd43-8f11-469c-9ad6-abef5288651e.svs (Hne)
+anon_5ba3cf66-2f72-4d80-a658-1fc63865de74  NOT FOUND

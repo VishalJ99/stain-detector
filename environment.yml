@@ -24,9 +24,19 @@ dependencies:
   - isort
   - flake8
   - pip:
-    - wandb
-    - dvc
-    - albumentations
-    - opencv-python
-    - python-dotenv
-    - petname
+    - brotli==1.1.0
+    - gmpy2==2.1.5
+    - h2==4.2.0
+    - icecream==2.1.4
+    - ipykernel==6.29.5
+    - munkres==1.1.4
+    - pickleshare==0.7.5
+    - pre_commit==4.2.0
+    - pyside6==6.8.3
+    - pysocks==1.7.1
+    - shiboken6==6.8.3
+    - statsmodels==0.14.4
+    - triton==3.0.0
+    - unicodedata2==16.0.0
+    - wheel==0.45.1
+    - zstandard==0.23.0

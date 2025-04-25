@@ -486,10 +486,13 @@ num_patches = 1000
 
 # Example 1: Exclude patches with x < 33500 at base resolution
 # exclusion_conditions = [('y', '>', 55000)]
+# /vol/biomedic3/histopatho/win_share/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs (IHC x>53052, y<25378, x<34588, y>64119)
+# /vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (Silver x>109962, y<13390, x<14840, y>68128)
+exclusion_conditions = [('x', '>', 109962), ('x', '<', 14840), ('y', '<', 13390), ('y', '>', 68128)]
 
-exclusion_conditions = [('x', '<', 36287), ('x', '>', 72013), ('y', '<', 10000), ('y', '>', 83000)]
-wsi_path = "/mnt/leica/anonymousImages_20240628/2024-07-04/anon_13e5ea7a-d233-4638-89ae-1539a65d8f55.svs"
-output_dir = "/home/candice/stain-detector/data/tmp/"
+wsi_path = "/vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs"
+
+output_dir = "./data/tmp/"
 # Extract patches from the WSI
 result = extract_patches_from_wsi(
     wsi_path=wsi_path,

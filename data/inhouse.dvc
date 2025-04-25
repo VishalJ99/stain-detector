@@ -1,0 +1,6 @@
+outs:
+- md5: 3aadb876c0d9ab3de565539518225f72.dir
+  size: 1432173077
+  nfiles: 15000
+  hash: md5
+  path: inhouse
