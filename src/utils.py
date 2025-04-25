@@ -4,6 +4,7 @@ import os
 import random
 import subprocess
 import sys
+import warnings
 from datetime import datetime
 
 import cv2
@@ -152,6 +153,21 @@ def check_git_dvc_clean():
         details["dvc"] = {"error": "DVC information not available"}
 
     return is_clean, details
+
+
+def get_dvc_file(dataset_path):
+    """Derive DVC file path from dataset path."""
+    # Strip trailing slashes for consistent handling
+    clean_path = dataset_path.rstrip("/")
+
+    # Add .dvc extension to get the DVC file path
+    dvc_file = f"{clean_path}.dvc"
+
+    # Verify the DVC file exists
+    if not os.path.exists(dvc_file):
+        warnings.warn(f"DVC file not found for dataset: {dvc_file}")
+
+    return dvc_file
 
 
 def log_unclean_state(details):

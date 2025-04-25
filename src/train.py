@@ -19,6 +19,7 @@ from utils import (
     check_git_dvc_clean,
     create_reproduce_command,
     get_device,
+    get_dvc_file,
     get_optimizer,
     get_scheduler,
     log_unclean_state,
@@ -209,10 +210,18 @@ def train(config, args):
     os.makedirs(run_dir)
 
     # Initialize W&B experiment.
+    # Get DVC file for tracking
+    dvc_file = get_dvc_file(config.data.data_dir)
+
+    # Prepare config with DVC file information
+    wandb_config = OmegaConf.to_container(config, resolve=True)
+    if dvc_file:
+        wandb_config["dvc_file"] = dvc_file
+
     wandb_run = wandb.init(
         project=config.logging.wandb_project,
         entity=config.logging.wandb_entity,
-        config=OmegaConf.to_container(config, resolve=True),
+        config=wandb_config,
         dir=run_dir,
         name=run_name,
     )

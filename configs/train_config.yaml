@@ -1,8 +1,7 @@
 data:
   data_dir: ./data
-  image_size: 224
+  image_size: 256
   batch_size: 64
-  mpp: 0.5
   num_classes: 2  # Set this to the expected number of stain classes
 
 model:

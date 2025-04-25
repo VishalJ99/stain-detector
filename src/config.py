@@ -31,6 +31,9 @@ def get_base_parser():
         "--data_dir", type=str, help="Override data directory in config"
     )
     parser.add_argument(
+        "--num_classes", type=int, help="Override number of classes in config"
+    )
+    parser.add_argument(
         "--num_patches",
         type=int,
         help="Number of patches to sample per WSI",
@@ -75,6 +78,8 @@ def update_config_with_args(config, args):
     if args.data_dir is not None:
         print(f"Overriding data directory to: {args.data_dir}")
         config.data.data_dir = args.data_dir
+    if args.num_classes is not None:
+        config.data.num_classes = args.num_classes
     if args.num_patches is not None:
         config.inference_defaults.num_patches = args.num_patches
     if args.run_dir is not None:
