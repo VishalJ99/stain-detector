@@ -38,7 +38,9 @@ def get_base_parser():
         type=int,
         help="Number of patches to sample per WSI",
     )
-
+    parser.add_argument(
+        "--disable_wandb", action="store_true", help="Disable wandb logging"
+    )
     return parser
 
 

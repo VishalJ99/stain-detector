@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import datetime
 
+import petname
 import torch
 import torch.nn as nn
 
@@ -17,7 +18,6 @@ from utils import (
     get_device,
     get_run_name_from_checkpoint,
     log_unclean_state,
-    save_git_dvc_state,
     save_metrics,
     set_seed,
     setup_logging,
@@ -82,7 +82,7 @@ def test(model, data_loader, criterion, device, logger):
     return loss, accuracy, all_preds, all_targets
 
 
-def main():
+if __name__ == "__main__":
     """Main evaluation function"""
     # Parse command line arguments.
     parser = argparse.ArgumentParser(
@@ -94,32 +94,44 @@ def main():
         required=True,
         help="Path to the model checkpoint to evaluate",
     )
-    parser.add_argument(
-        "--test_dir", type=str, help="Directory with test data (overrides config)"
-    )
-
     args = parser.parse_args()
-    run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
 
     # Add config path to args.
-    args.config = os.path.join(run_dir, "config.yaml")
+    train_run_dir = os.path.dirname(os.path.dirname(args.checkpoint))
+    args.config = os.path.join(train_run_dir, "config.yaml")
 
     # Load configuration.
     config = load_config_from_args(args)
 
-    # Load checkpoint.
-    checkpoint = torch.load(args.checkpoint, map_location="cpu")
+    # Monkey data as development data - skip prod run checks.
+    if "monkey" not in config.data.data_dir:
+        is_clean, details = check_git_dvc_clean()
+        if not is_clean:
+            # Check for uncommitted changes
+            log_unclean_state(details)
+            sys.exit(1)
 
-    # Override config with command line arguments.
-    if args.test_dir:
-        config.data.test_dir = args.test_dir
+        assert (
+            not args.disable_wandb
+        ), "Doing a non development run with W&B disabled is not allowed"
 
     # Set up output directory.
-    run_name = get_run_name_from_checkpoint(args.checkpoint)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(run_dir, "test", timestamp)
-
+    run_name = petname.generate(2, separator="-")
+    output_dir = os.path.join(train_run_dir, "test", f"{timestamp}_{run_name}")
     os.makedirs(output_dir, exist_ok=True)
+
+    if not args.disable_wandb:
+        # Initialise wandb.
+        wandb.init(
+            project=os.environ["WANDB_PROJECT"],
+            group=get_run_name_from_checkpoint(args.checkpoint),
+            job_type="test",
+            name=run_name,
+        )
+
+    # Load checkpoint.
+    checkpoint = torch.load(args.checkpoint, map_location="cpu")
 
     # Set up logging.
     logger = setup_logging("test", output_dir, log_file_name="test.log")
@@ -129,11 +141,12 @@ def main():
     # Set random seed.
     set_seed(config.training.seed)
 
-    # Record environment state.
-    save_git_dvc_state(output_dir)
-
     # Create reproducibility file.
-    create_reproduce_command(args, os.path.join(output_dir, "reproduce_test.txt"))
+    create_reproduce_command(
+        parser,
+        os.path.join(output_dir, "reproduce_test.txt"),
+        dvc_file_path=config.data.data_dir + ".dvc",
+    )
 
     # Get device.
     device = get_device(config.training.device)
@@ -191,30 +204,12 @@ def main():
     logger.info(f"Test completed. Results saved to: {output_dir}")
 
     # Log metrics to wandb
-    wandb.init(
-        project=os.environ["WANDB_PROJECT"],
-        group=run_name,
-        job_type="test",
-        name=f"test_{run_name}_{timestamp}",
-        config=config,
-    )
-    wandb.log(
-        {
-            "test/loss": loss,
-            "test/accuracy": accuracy,
-            "test/samples": len(test_dataset),
-        }
-    )
-    wandb.finish()
-
-    return loss, accuracy
-
-
-if __name__ == "__main__":
-    # Check for uncommitted changes
-    is_clean, details = check_git_dvc_clean()
-    if not is_clean:
-        log_unclean_state(details)
-        sys.exit(1)
-
-    main()
+    if not args.disable_wandb:
+        wandb.log(
+            {
+                "test/loss": loss,
+                "test/accuracy": accuracy,
+                "test/samples": len(test_dataset),
+            }
+        )
+        wandb.finish()

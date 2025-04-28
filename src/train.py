@@ -23,7 +23,6 @@ from utils import (
     get_optimizer,
     get_scheduler,
     log_unclean_state,
-    save_git_dvc_state,
     set_seed,
     setup_logging,
 )
@@ -224,6 +223,7 @@ def train(config, args):
         config=wandb_config,
         dir=run_dir,
         name=run_name,
+        job_type="train",
     )
 
     # Add the run name to the config.
@@ -235,9 +235,6 @@ def train(config, args):
 
     # Set random seed for reproducibility.
     set_seed(config.training.seed)
-
-    # Save git and dvc status.
-    save_git_dvc_state(run_dir)
 
     # Save the exact config used for this run.
     config_path = os.path.join(run_dir, "config.yaml")

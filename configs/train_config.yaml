@@ -32,6 +32,7 @@ inference_defaults:
   save_patches: false
 
 logging:
+  wandb_group:
   log_interval_steps: 5
   log_val_batch_idx: 0 # Index for validation batch logging (-1 to disable)
   run_dir: runs

@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 import os
@@ -208,81 +209,64 @@ def log_unclean_state(details):
     )
 
 
-def save_git_dvc_state(output_dir):
-    """
-    Save git and dvc state information for reproducibility
-
-    Args:
-        output_dir (str): Directory to save state information
-    """
-    state = {}
-
-    # Get git information
-    try:
-        git_hash = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"])
-            .decode("utf-8")
-            .strip()
-        )
-        git_branch = (
-            subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-            .decode("utf-8")
-            .strip()
-        )
-        git_status = (
-            subprocess.check_output(["git", "status", "--porcelain"])
-            .decode("utf-8")
-            .strip()
-        )
-
-        state["git"] = {
-            "hash": git_hash,
-            "branch": git_branch,
-            "status": git_status.split("\n") if git_status else [],
-        }
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        state["git"] = {"error": "Git information not available"}
-
-    # Get dvc information
-    try:
-        dvc_status = subprocess.check_output(["dvc", "status"]).decode("utf-8").strip()
-        state["dvc"] = {
-            "status": dvc_status.split("\n") if dvc_status else "Up to date"
-        }
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        state["dvc"] = {"error": "DVC information not available"}
-
-    # Add timestamp
-    state["timestamp"] = datetime.now().isoformat()
-
-    # Save to file
-    os.makedirs(output_dir, exist_ok=True)
-    with open(os.path.join(output_dir, "git_dvc_state.json"), "w") as f:
-        json.dump(state, f, indent=2)
-
-
-def create_reproduce_command(args, output_file):
+def create_reproduce_command(parser, output_file, dvc_file_path=None):
     """
     Create a text file with the command to reproduce this run
 
     Args:
-        args (argparse.Namespace): Command line arguments
+        parser (argparse.ArgumentParser): Parser object
         output_file (str): File to save reproduction command
+        dvc_file_path (str, optional): Path to DVC file for checkout
     """
+    # Fetch current git hash
+    git_hash = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
+    )
+
+    with open(output_file, "w") as f:
+        f.write(f"git checkout {git_hash}\n")
+
+    if dvc_file_path:
+        with open(output_file, "a") as f:
+            f.write(f"dvc checkout {dvc_file_path}\n")
+
     command = ["python"]
 
     # Get script name
     script_path = sys.argv[0]
     command.append(script_path)
 
-    # Add all args
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Create a mapping of argument destinations to their default values
+    default_values = {}
+    for action in parser._actions:
+        default_values[action.dest] = action.default
+
+    # Identify store_true/store_false arguments
+    store_action_args = set()
+    for action in parser._actions:
+        if isinstance(action, argparse._StoreTrueAction) or isinstance(
+            action, argparse._StoreFalseAction
+        ):
+            store_action_args.add(action.dest)
+
+    # Add only non-default args to command
     for arg_name, arg_value in vars(args).items():
-        if arg_value is not None:
-            command.append(f"--{arg_name.replace('_', '-')} {arg_value}")
+        # Skip if value is the default
+        if arg_value == default_values.get(arg_name):
+            continue
+
+        if arg_name in store_action_args:
+            # Only add flag if it's different from default
+            command.append(f"--{arg_name}")
+        else:
+            command.append(f"--{arg_name} {arg_value}")
 
     # Save to file
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, "w") as f:
+    with open(output_file, "a") as f:
         f.write(" ".join(command))
 
 
@@ -718,5 +702,5 @@ def save_metrics(all_preds, all_targets, class_names, output_dir):
 
 def get_run_name_from_checkpoint(checkpoint_path):
     run_dir = os.path.dirname(os.path.dirname(checkpoint_path))
-    run_name = os.path.basename(run_dir).split("_", 1)[-1]
+    run_name = os.path.basename(run_dir).split("_", 1)[-1].split("_", 1)[1]
     return run_name
