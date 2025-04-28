@@ -7,6 +7,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 
+import wandb
 from config import get_base_parser, load_config_from_args
 from dataset import StainDataset
 from model import StainClassifier
@@ -14,6 +15,7 @@ from utils import (
     check_git_dvc_clean,
     create_reproduce_command,
     get_device,
+    get_run_name_from_checkpoint,
     log_unclean_state,
     save_git_dvc_state,
     save_metrics,
@@ -113,6 +115,7 @@ def main():
         config.data.test_dir = args.test_dir
 
     # Set up output directory.
+    run_name = get_run_name_from_checkpoint(args.checkpoint)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(run_dir, "test", timestamp)
 
@@ -186,6 +189,23 @@ def main():
         json.dump(basic_metrics, f, indent=2)
 
     logger.info(f"Test completed. Results saved to: {output_dir}")
+
+    # Log metrics to wandb
+    wandb.init(
+        project=os.environ["WANDB_PROJECT"],
+        group=run_name,
+        job_type="test",
+        name=f"test_{run_name}_{timestamp}",
+        config=config,
+    )
+    wandb.log(
+        {
+            "test/loss": loss,
+            "test/accuracy": accuracy,
+            "test/samples": len(test_dataset),
+        }
+    )
+    wandb.finish()
 
     return loss, accuracy
 

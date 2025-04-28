@@ -714,3 +714,9 @@ def save_metrics(all_preds, all_targets, class_names, output_dir):
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "pr_curves.png"))
     plt.close()
+
+
+def get_run_name_from_checkpoint(checkpoint_path):
+    run_dir = os.path.dirname(os.path.dirname(checkpoint_path))
+    run_name = os.path.basename(run_dir).split("_", 1)[-1]
+    return run_name
