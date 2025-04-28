@@ -20,3 +20,4 @@ runs/**/wandb/
 
 
 commit_diff_summary.txt
+.vscode/
