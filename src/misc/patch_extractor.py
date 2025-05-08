@@ -65,7 +65,7 @@ def extract_patches_from_wsi(
         If save_patches=False:
             list: List of tuples (patch_np, x, y) where patch_np is the numpy array and x,y are coordinates
         If save_patches=True:
-            tuple: (patch_list, metadata_dict)
+            tuple: (simple_patch_list, metadata_dict) where simple_patch_list contains tuples (patch_np, x, y)
     """
     # Initialize exclusion conditions if not provided
     if exclusion_conditions is None:
@@ -127,8 +127,17 @@ def extract_patches_from_wsi(
 
     # Open the slide
     print(f"Opening slide: {wsi_path}")
-    slide = openslide.OpenSlide(wsi_path)
-    width, height = slide.level_dimensions[level]
+    try:
+        slide = openslide.OpenSlide(wsi_path)
+        
+        # Validate the level
+        if level >= len(slide.level_dimensions):
+            raise ValueError(f"Invalid level {level}. Slide has {len(slide.level_dimensions)} levels (0-{len(slide.level_dimensions)-1}).")
+        
+        width, height = slide.level_dimensions[level]
+    except Exception as e:
+        print(f"Error opening slide: {e}")
+        raise
 
     # Initialize tracking
     patches = []
@@ -293,28 +302,11 @@ def extract_patches_from_wsi(
             should_infer = is_tissue_patch(patch_np, tissue_threshold)
 
             if should_infer:
-                # Store patch with coordinates
-                patches.append((patch_np, full_x, full_y))
+                # Store patch with coordinates and PIL image
+                patches.append((patch_np, full_x, full_y, patch_pil, tissue_percentage))
                 print(
                     f"Patch {count} at position x={full_x}, y={full_y} is a tissue patch"
                 )
-
-                # Save patch if requested
-                if save_patches:
-                    patch_filename = f"{slide_name}_x{full_x}_y{full_y}_l{level}.png"
-                    patch_path = os.path.join(slide_output_dir, patch_filename)
-                    patch_pil.save(patch_path)
-
-                    # Store metadata
-                    patch_info = {
-                        "filename": patch_filename,
-                        "x": full_x,
-                        "y": full_y,
-                        "level": level,
-                        "tissue_percentage": tissue_percentage,
-                        "patch_index": count,
-                    }
-                    metadata["patches"].append(patch_info)
 
                 count += 1
 
@@ -389,6 +381,10 @@ def extract_patches_from_wsi(
 
         # Now iterate only through the filtered ROI positions
         for x_idx, y_idx, thumb_x, thumb_y in roi_positions:
+            # Exit early if we've reached the max number of patches
+            if count >= max_patches_to_extract:
+                print(f"Reached maximum of {max_patches_to_extract} patches, stopping extraction")
+                break
             # Calculate full resolution coordinates
             full_x = x_idx * step_size
             full_y = y_idx * step_size
@@ -476,31 +472,14 @@ def extract_patches_from_wsi(
             should_infer = is_tissue_patch(patch_np, tissue_threshold)
 
             if should_infer:
-                # Store patch with coordinates
-                patches.append((patch_np, full_x, full_y))
+                # Store patch with coordinates and PIL image
+                patches.append((patch_np, full_x, full_y, patch_pil, tissue_percentage))
                 if (
                     count % 100 == 0
                 ):  # Print every 100 patches to avoid flooding console
                     print(
                         f"Patch {count} at position x={full_x}, y={full_y} is a tissue patch"
                     )
-
-                # Save patch if requested
-                if save_patches:
-                    patch_filename = f"{slide_name}_x{full_x}_y{full_y}_l{level}.png"
-                    patch_path = os.path.join(slide_output_dir, patch_filename)
-                    patch_pil.save(patch_path)
-
-                    # Store metadata
-                    patch_info = {
-                        "filename": patch_filename,
-                        "x": full_x,
-                        "y": full_y,
-                        "level": level,
-                        "tissue_percentage": tissue_percentage,
-                        "patch_index": count,
-                    }
-                    metadata["patches"].append(patch_info)
 
                 count += 1
 
@@ -516,9 +495,7 @@ def extract_patches_from_wsi(
                     rect, outline="green" if should_infer else "red", width=1
                 )
 
-            # Then add this check inside the loop
-            if count >= max_patches_to_extract:
-                break
+            # Note: We have an early exit check at the top of the loop now
 
     # Save debug overlay
     if create_debug_images:
@@ -528,16 +505,64 @@ def extract_patches_from_wsi(
     print(f"Extracted {count} patches from {wsi_path}")
     slide.close()
 
-    # Save metadata if patches were saved
+    # Save patches and metadata if requested
     if save_patches:
-        metadata_path = os.path.join(slide_output_dir, f"{slide_name}_metadata.json")
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
-        print(f"Saved {count} patches and metadata to {slide_output_dir}")
+        print(f"Saving {len(patches)} patches to {slide_output_dir}")
+        metadata["patches"] = []
+        
+        # Process and save patches in batches to reduce memory usage
+        batch_size = 100  # Process 100 patches at a time
+        total_patches = len(patches)
+        
+        for batch_start in range(0, total_patches, batch_size):
+            batch_end = min(batch_start + batch_size, total_patches)
+            current_batch = patches[batch_start:batch_end]
+            
+            for i, (patch_np, x, y, patch_pil, tissue_percentage) in enumerate(current_batch):
+                global_idx = batch_start + i
+                patch_filename = f"{slide_name}_x{x}_y{y}_l{level}.png"
+                patch_path = os.path.join(slide_output_dir, patch_filename)
+                
+                try:
+                    # Save the patch
+                    patch_pil.save(patch_path)
+                    
+                    # Store metadata
+                    patch_info = {
+                        "filename": patch_filename,
+                        "x": x,
+                        "y": y,
+                        "level": level,
+                        "tissue_percentage": tissue_percentage,
+                        "patch_index": global_idx,
+                    }
+                    metadata["patches"].append(patch_info)
+                except Exception as e:
+                    print(f"Error saving patch at x={x}, y={y}: {e}")
+                
+                # Free memory
+                patch_pil = None
+            
+            print(f"Saved {batch_end}/{total_patches} patches")
+            
+            # Write metadata incrementally to avoid losing all data if process is interrupted
+            if batch_end % 500 == 0 or batch_end == total_patches:
+                try:
+                    metadata_path = os.path.join(slide_output_dir, f"{slide_name}_metadata.json")
+                    with open(metadata_path, "w") as f:
+                        json.dump(metadata, f, indent=2)
+                except Exception as e:
+                    print(f"Error saving metadata: {e}")
+        
+        print(f"Saved {len(metadata['patches'])} patches and metadata to {slide_output_dir}")
+        
+        # Return patches without PIL objects to save memory
+        simple_patches = [(np_arr, x, y) for np_arr, x, y, _, _ in patches]
+        return simple_patches, metadata
 
-        return patches, metadata
-
-    return patches
+    # Return patches without PIL objects to save memory
+    simple_patches = [(np_arr, x, y) for np_arr, x, y, _, _ in patches]
+    return simple_patches
 
 
 def parse_exclusions(exclusion_str):
@@ -612,27 +637,32 @@ def main():
     parser.add_argument("--label", help="Optional label/class for organizing patches")
     
     args = parser.parse_args()
+
     
     # Parse exclusion conditions
     exclusion_conditions = parse_exclusions(args.exclusions)
     
-    # Extract patches
-    result = extract_patches_from_wsi(
-        wsi_path=args.input,
-        patch_size=args.patch_size,
-        overlap=args.overlap,
-        level=args.level,
-        tissue_threshold=args.tissue_threshold,
-        create_debug_images=args.debug,
-        debug_output_dir=args.debug_output_dir,
-        num_patches=args.num_patches,
-        exclusion_conditions=exclusion_conditions,
-        exclusion_mode=args.exclusion_mode,
-        extraction_mode=args.mode,
-        save_patches=args.save_patches,
-        output_dir=args.output_dir,
-        label=args.label,
-    )
+    # Safely extract patches with error handling
+    try:
+        result = extract_patches_from_wsi(
+            wsi_path=args.input,
+            patch_size=args.patch_size,
+            overlap=args.overlap,
+            level=args.level,
+            tissue_threshold=args.tissue_threshold,
+            create_debug_images=args.debug,
+            debug_output_dir=args.debug_output_dir,
+            num_patches=args.num_patches,
+            exclusion_conditions=exclusion_conditions,
+            exclusion_mode=args.exclusion_mode,
+            extraction_mode=args.mode,
+            save_patches=args.save_patches,
+            output_dir=args.output_dir,
+            label=args.label,
+        )
+    except Exception as e:
+        print(f"Error processing slide: {e}")
+        return
     
     # Handle result based on whether patches were saved
     if isinstance(result, tuple):
@@ -644,20 +674,29 @@ def main():
         
         # Save patches to output_dir if not already saved but patches were extracted
         if patches and not args.save_patches and args.output_dir:
+            if not args.output_dir:
+                print("Warning: No output directory specified, skipping patch saving")
+                return
+                
             os.makedirs(args.output_dir, exist_ok=True)
             slide_name = os.path.splitext(os.path.basename(args.input))[0]
             
             print(f"Saving {len(patches)} patches to {args.output_dir}")
-            for i, (patch_np, x, y) in enumerate(patches):
-                patch_filename = f"{slide_name}_x{x}_y{y}_l{args.level}.png"
-                patch_path = os.path.join(args.output_dir, patch_filename)
-                patch_pil = Image.fromarray(patch_np)
-                patch_pil.save(patch_path)
+            
+            # Use tqdm for a progress bar
+            # Note: patches are only (np_arr, x, y) in the non-save mode return
+            try:
+                for i, (patch_np, x, y) in enumerate(tqdm(patches, desc="Saving patches")):
+                    patch_filename = f"{slide_name}_x{x}_y{y}_l{args.level}.png"
+                    patch_path = os.path.join(args.output_dir, patch_filename)
+                    patch_pil = Image.fromarray(patch_np)
+                    patch_pil.save(patch_path)
+                    # Release memory immediately
+                    patch_pil = None
                 
-                if i % 100 == 0:
-                    print(f"Saved {i}/{len(patches)} patches")
-                    
-            print(f"Successfully saved {len(patches)} patches to {args.output_dir}")
+                print(f"Successfully saved {len(patches)} patches to {args.output_dir}")
+            except Exception as e:
+                print(f"Error saving patches: {e}")
 
 
 if __name__ == "__main__":
