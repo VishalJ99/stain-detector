@@ -1,24 +1,20 @@
-# debug_patch_extraction.ipynb
+#!/usr/bin/env python3
+# patch_extractor.py - Extract patches from whole slide images
 import sys
-
-sys.path.append("../src")  # Add src directory to path
-
 import json
 import os
-import random
-
+import argparse
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import openslide
 from PIL import Image, ImageDraw
+from tqdm import tqdm
 
 MASK_SAT = 0
 MASK_VAL = 245
 
 
 def is_tissue_patch(patch_np, threshold=0.15):
-    # HSV-based tissue filtering
     hsv = cv2.cvtColor(patch_np, cv2.COLOR_RGB2HSV)
     saturation = hsv[:, :, 1]
     value = hsv[:, :, 2]
@@ -57,8 +53,8 @@ def extract_patches_from_wsi(
         debug_output_dir (str, optional): Directory to save debug images
         num_patches (int): Maximum number of patches to extract (only used in random mode)
         exclusion_conditions (list): List of tuples (coord, operator, value) for exclusion criteria
-                                    e.g. [('x', '<', 33500)] to exclude patches with x < 33500
-                                    Coordinates are at base/original resolution (level 0)
+                                  e.g. [('x', '<', 33500)] to exclude patches with x < 33500
+                                  Coordinates are at base/original resolution (level 0)
         exclusion_mode (str): 'any' to exclude if any condition is met, 'all' for all conditions
         extraction_mode (str): 'random' to extract random patches, 'contiguous' for grid-based patches
         save_patches (bool): Whether to save patches to disk
@@ -266,7 +262,7 @@ def extract_patches_from_wsi(
                 and all(satisfied_conditions)
                 and satisfied_conditions
             ):
-                should_exclude = Trueg
+                should_exclude = True
 
             if should_exclude:
                 if create_debug_images and len(satisfied_conditions) > 0:
@@ -544,75 +540,125 @@ def extract_patches_from_wsi(
     return patches
 
 
-# Define parameters for patch extraction
-patch_size = 256
-overlap = 0.25  # 25% overlap between patches
-level = 0
-tissue_threshold = 0.05
-debug_output_dir = "debug_output"
-num_patches = 1000
+def parse_exclusions(exclusion_str):
+    """Parse exclusion conditions string into a list of tuples."""
+    if not exclusion_str:
+        return []
+    
+    conditions = []
+    for condition in exclusion_str.split(','):
+        parts = condition.strip().split(':')
+        if len(parts) != 3:
+            print(f"Warning: Invalid exclusion condition '{condition}', skipping")
+            continue
+            
+        coord, operator, value = parts
+        if operator not in ['<', '>', '<=', '>=', '==']:
+            print(f"Warning: Invalid operator '{operator}' in '{condition}', skipping")
+            continue
+            
+        try:
+            value = int(value)
+        except ValueError:
+            print(f"Warning: Invalid value '{value}' in '{condition}', skipping")
+            continue
+            
+        conditions.append((coord, operator, value))
+        
+    return conditions
 
-# Example 1: Exclude patches with x < 33500 at base resolution
-# exclusion_conditions = [('y', '>', 55000)]
-# /vol/biomedic3/histopatho/win_share/2024-07-04/anon_645bcdac-3e6c-4ec4-bcb1-619c1ee76517.svs (IHC x>53052, y<25378, x<34588, y>64119)
-# /vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs (Silver x>109962, y<13390, x<14840, y>68128)
-exclusion_conditions = [
-    ("x", ">", 109962),
-    ("x", "<", 14840),
-    ("y", "<", 13390),
-    ("y", ">", 68128),
-]
 
-wsi_path = "/vol/biomedic3/histopatho/win_share/2024-07-04/anon_61040e50-c3a5-4abb-917b-86433bb84aa5.svs"
+def main():
+    """Parse command line arguments and run the patch extractor."""
+    parser = argparse.ArgumentParser(description="Extract patches from a whole slide image.")
+    
+    # Required arguments
+    parser.add_argument("--input", "-i", required=True, help="Path to the input SVS file")
+    
+    # Extraction parameters
+    parser.add_argument("--patch-size", "-p", type=int, default=256, 
+                      help="Size of patches to extract (default: 256)")
+    parser.add_argument("--overlap", "-o", type=float, default=0.25, 
+                      help="Overlap between patches, 0-1 (default: 0.25)")
+    parser.add_argument("--level", "-l", type=int, default=0, 
+                      help="WSI pyramid level to extract from (default: 0)")
+    parser.add_argument("--tissue-threshold", "-t", type=float, default=0.05, 
+                      help="Minimum tissue percentage threshold (default: 0.05)")
+    parser.add_argument("--num-patches", "-n", type=int, default=1000, 
+                      help="Maximum number of patches to extract (default: 1000)")
+    
+    # Debug options
+    parser.add_argument("--debug", "-d", action="store_true", 
+                      help="Save debug outputs")
+    parser.add_argument("--debug-output-dir", "-do", default="debug_output", 
+                      help="Directory to save debug outputs (default: 'debug_output')")
+    
+    # Exclusion conditions
+    parser.add_argument("--exclusions", "-e", type=str, 
+                      help="Comma-separated exclusion conditions in format 'coord:operator:value'. "
+                           "Example: 'x:>:1000,y:<:500' excludes x>1000 and y<500")
+    parser.add_argument("--exclusion-mode", "-em", choices=["any", "all"], default="any", 
+                      help="'any' to exclude if any condition is met, 'all' for all conditions (default: 'any')")
+    
+    # Extraction mode
+    parser.add_argument("--mode", "-m", choices=["random", "contiguous"], default="random", 
+                      help="Extraction mode: 'random' or 'contiguous' (default: 'random')")
+    
+    # Output options
+    parser.add_argument("--save-patches", "-s", action="store_true", 
+                      help="Save extracted patches to disk")
+    parser.add_argument("--output-dir", "-od", default="extracted_patches", 
+                      help="Directory to save extracted patches (default: 'extracted_patches')")
+    parser.add_argument("--label", help="Optional label/class for organizing patches")
+    
+    args = parser.parse_args()
+    
+    # Parse exclusion conditions
+    exclusion_conditions = parse_exclusions(args.exclusions)
+    
+    # Extract patches
+    result = extract_patches_from_wsi(
+        wsi_path=args.input,
+        patch_size=args.patch_size,
+        overlap=args.overlap,
+        level=args.level,
+        tissue_threshold=args.tissue_threshold,
+        create_debug_images=args.debug,
+        debug_output_dir=args.debug_output_dir,
+        num_patches=args.num_patches,
+        exclusion_conditions=exclusion_conditions,
+        exclusion_mode=args.exclusion_mode,
+        extraction_mode=args.mode,
+        save_patches=args.save_patches,
+        output_dir=args.output_dir,
+        label=args.label,
+    )
+    
+    # Handle result based on whether patches were saved
+    if isinstance(result, tuple):
+        patches, metadata = result
+        print(f"Extracted and saved {len(patches)} patches with metadata")
+    else:
+        patches = result
+        print(f"Extracted {len(patches)} patches (not saved to disk)")
+        
+        # Save patches to output_dir if not already saved but patches were extracted
+        if patches and not args.save_patches and args.output_dir:
+            os.makedirs(args.output_dir, exist_ok=True)
+            slide_name = os.path.splitext(os.path.basename(args.input))[0]
+            
+            print(f"Saving {len(patches)} patches to {args.output_dir}")
+            for i, (patch_np, x, y) in enumerate(patches):
+                patch_filename = f"{slide_name}_x{x}_y{y}_l{args.level}.png"
+                patch_path = os.path.join(args.output_dir, patch_filename)
+                patch_pil = Image.fromarray(patch_np)
+                patch_pil.save(patch_path)
+                
+                if i % 100 == 0:
+                    print(f"Saved {i}/{len(patches)} patches")
+                    
+            print(f"Successfully saved {len(patches)} patches to {args.output_dir}")
 
-output_dir = "./data/tmp/"
-# Extract patches from the WSI
-result = extract_patches_from_wsi(
-    wsi_path=wsi_path,
-    patch_size=patch_size,
-    overlap=overlap,
-    level=level,
-    tissue_threshold=tissue_threshold,
-    create_debug_images=True,
-    debug_output_dir=debug_output_dir,
-    num_patches=num_patches,
-    exclusion_conditions=exclusion_conditions,
-    exclusion_mode="any",  # 'any' or 'all'
-    extraction_mode="random",  # 'random' or 'contiguous'
-    save_patches=False,  # Set to True to save patches to disk
-    output_dir="extracted_patches",  # Directory to save patches when save_patches=True
-    label=None,  # Optional class/label for organizing patches
-)
 
-# Handle result based on whether patches were saved
-if isinstance(result, tuple):
-    patches, metadata = result
-    print(f"Found {len(patches)} patches with metadata")
-else:
-    patches = result
-    print(f"Found {len(patches)} patches")
-
-    # Example: Access the first patch and its coordinates
-    if patches:
-        first_patch, x, y = patches[0]
-        print(
-            f"First patch is at coordinates x={x}, y={y} with shape {first_patch.shape}"
-        )
-
-# Save patches to the output directory
-
-os.makedirs(output_dir, exist_ok=True)
-
-slide_name = os.path.splitext(os.path.basename(wsi_path))[0]
-
-# Save each patch to the output directory
-for i, (patch_np, x, y) in enumerate(patches):
-    patch_filename = f"{slide_name}_x{x}_y{y}_l{level}.png"
-    patch_path = os.path.join(output_dir, patch_filename)
-    patch_pil = Image.fromarray(patch_np)
-    patch_pil.save(patch_path)
-
-    if i % 100 == 0:
-        print(f"Saved {i}/{len(patches)} patches")
-
-print(f"Successfully saved {len(patches)} patches to {output_dir}")
+if __name__ == "__main__":
+    main()
